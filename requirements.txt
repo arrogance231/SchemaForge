@@ -1,0 +1,12 @@
+# SchemaForge V2 -- CPU foundation for steps 1-4 only.
+#
+# GPU/training dependencies for steps 5-8 (torch, vLLM, flash-attn, DeepSpeed,
+# bitsandbytes) are deliberately NOT listed here: they are ROCm-version-specific
+# and must be pinned against the AMD server's confirmed ROCm version once known
+# (see docs/PROJECT_CHARTER.md section 8). Do not add CUDA-pinned wheels to
+# this file.
+
+pydantic>=2.13.4
+dateparser>=1.4.2
+phonenumbers>=9.0.36
+pytest>=9.1.1

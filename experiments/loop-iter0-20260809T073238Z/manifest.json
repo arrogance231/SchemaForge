@@ -1,0 +1,147 @@
+{
+  "run_id": "loop-iter0-20260809T073238Z",
+  "status": "in_progress",
+  "status_note": "Manifest created mid-run per explicit instruction not to interrupt training. Fields below marked null/\"unknown — not recorded\" are pending or unrecoverable and will be filled in after completion by re-editing this same file (not superseded by a new run-id, since it documents this one run).",
+  "manifest_schema_note": "All values are measured from the live process, git history, and on-disk config at audit time (2026-08-09T08:5x UTC), not reconstructed from defaults. Anything not directly observable is explicitly null with an explanation, per instruction not to fabricate.",
+
+  "provenance": {
+    "git_commit": "0ea791baa78e33f95ae780c4def603fa99b402ce",
+    "git_commit_timestamp": "2026-08-09T07:32:11+00:00",
+    "git_branch": "master",
+    "git_working_tree_dirty_at_launch": false,
+    "git_working_tree_dirty_note": "`git status --short` was clean immediately before this run was launched (last commit 0ea791b, pushed, then src/09_loop.py synced and the loop launched in the same minute). No local uncommitted changes existed at launch time.",
+    "repo_url": "git@github.com:arrogance231/LLM.git",
+    "repo_subpath": "projects/gemma_minicpm_json_distillation",
+    "orchestrator_script": "src/09_loop.py",
+    "exact_launch_command": [
+      "python3", "src/09_loop.py",
+      "--eval-jsonl", "data/eval_holdout.jsonl",
+      "--state-file", "logs/loop_state.jsonl",
+      "--max-iterations", "1"
+    ],
+    "launch_command_note": "Run via: cd /root/schemaforge_v2 && source /root/venv/bin/activate && nohup python3 src/09_loop.py --eval-jsonl data/eval_holdout.jsonl --state-file logs/loop_state.jsonl --max-iterations 1 > logs/09_loop_iter0.log 2>&1 & disown",
+    "config_files_used": [
+      "no external config file — all hyperparameters are literal constants inside src/01_generate_teacher.py and src/02_train_distill.py (this repo's convention: standalone numbered scripts, no config-file layer). See training_configuration below for the exact values read directly from those files at this commit."
+    ],
+    "cli_overrides_of_defaults": "none — src/01_generate_teacher.py and src/02_train_distill.py take no CLI arguments; src/09_loop.py's own CLI args only control corpus generation (n_per_schema=30 [default], severities=0.0,0.3,0.6,0.9 [default], seed=42 [default]) and eval-jsonl/state-file paths, all left at their defaults for this run except --eval-jsonl and --state-file (both required, no default to override)."
+  },
+
+  "hardware_environment": {
+    "gpu_count": 1,
+    "gpu_model": "AMD Instinct MI300X VF",
+    "gpu_vram_total_bytes": 205822885888,
+    "gpu_vram_total_gib_approx": 191.7,
+    "rocm_version": "7.0.2",
+    "rocm_template": "rocm-7-14-software",
+    "server_hostname": "rocm-7-14-software-gpu-mi300x1-192gb-devcloud-atl1",
+    "server_ssh_alias_local": "amd-training-2",
+    "os": "Ubuntu 24.04.4 LTS",
+    "kernel": "Linux 6.8.0-134-generic-x86_64",
+    "python_version": "3.12.3",
+    "torch_version": "2.11.0.dev20260206+rocm7.0",
+    "transformers_version": "5.14.1",
+    "accelerate_version": "1.14.0",
+    "peft_trl_versions": "not used in this run (no LoRA/PEFT/quantization; full-parameter fine-tune)",
+    "compute_attribution": "GPU access provided by the AMD AI Developer Program. This statement documents the compute source; it is not a claim of AMD endorsement or review of the research.",
+    "shared_gpu_note": "This GPU/server is shared with a second, independently-operated agent session running unrelated ComfyUI/image-generation workloads during this run. VRAM was not contended (this job used <1/3 of the 192GB total); GPU compute utilization was occasionally shared, which may have modestly lengthened wall-clock duration versus an exclusive run — recorded as a caveat, not a fabricated throughput number."
+  },
+
+  "teacher_model": {
+    "identifier": "google/gemma-4-31B",
+    "revision": "unknown — not pinned; huggingface_hub cache snapshot hash observed on disk at audit time: 5bbc2fb1c1b2c611d06e3d9f23c170ba21659d89 (recoverable from ~/.cache/huggingface/hub/models--google--gemma-4-31B/snapshots/ on amd-training-2 as long as that cache is not cleared)",
+    "role": "offline teacher generation only (src/01_generate_teacher.py); not loaded during the retrain stage"
+  },
+
+  "student_model": {
+    "identifier": "openbmb/MiniCPM5-1B",
+    "revision": "unknown — not pinned in code; not yet downloaded to this server's HF cache at manifest-creation time (the retrain stage, which triggers the download, had not started yet during this audit — the running process was still in the teacher-generation stage). To be filled in from ~/.cache/huggingface/hub/models--openbmb--MiniCPM5-1B/snapshots/ once available, without interrupting the run.",
+    "architecture": "LlamaForCausalLM (per config.json of a prior identically-configured checkpoint from this same script)",
+    "hidden_size": 1536,
+    "num_hidden_layers": 24,
+    "num_attention_heads": 16,
+    "num_key_value_heads": 2,
+    "intermediate_size": 4608,
+    "vocab_size": 130560,
+    "max_position_embeddings": 131072,
+    "tie_word_embeddings": false,
+    "parameter_count_estimate": 1042808832,
+    "parameter_count_estimate_note": "Computed from config.json architecture dimensions (embedding + per-layer attention/MLP projections x24 layers, untied input/output embeddings), not measured via a live model.numel() call — flagged as an estimate, not a measured fact.",
+    "tokenizer_identifier": "openbmb/MiniCPM5-1B (same repo as the model; no separate tokenizer repo)",
+    "tokenizer_revision": "unknown — not pinned, same caveat as student_model.revision"
+  },
+
+  "dataset": {
+    "source": "schemaforge.hardexamples.generate (this repo's own deterministic hard-example generator; not an external/published dataset)",
+    "generation_command": [
+      "python3", "-m", "schemaforge.hardexamples.generate",
+      "--split", "train", "--n", "30", "--severities", "0.0,0.3,0.6,0.9",
+      "--seed", "42", "--out", "data/hard_examples_train.jsonl"
+    ],
+    "seed": 42,
+    "n_per_schema_per_severity": 30,
+    "severities": [0.0, 0.3, 0.6, 0.9],
+    "schemas_included": "all 9 training schemas (held-out schemas insurance_claim/conversation/kg_triple excluded by --split train)",
+    "operators": "default (all ten corruption operators; --operators not overridden)",
+    "corpus_size_records": 1080,
+    "corpus_sha256": "94afb6bb4befb11679cc5390d5cd89ce6d1f5580d0851b84cf007194d97f72de",
+    "corpus_size_note": "sha256 matches the corpus used for the prior (iteration-5) run byte-for-byte, confirming the generator's determinism claim (same seed/params -> identical output).",
+    "teacher_output_dataset": "data/teacher_dataset.json, written by src/01_generate_teacher.py after the §4.2 validation gate (schemaforge/validation/gate.py) — admitted count pending, this stage was still running at manifest-creation time",
+    "teacher_gate_rejections_file": "data/teacher_dataset_rejections.json",
+    "train_val_test_split": "no held-out validation/test split within the admitted training set — the model trains on 100% of gate-admitted examples; evaluation is against a SEPARATE eval corpus (data/eval_holdout.jsonl, 72 records spanning all 12 schemas including the 3 held-out ones) generated independently, not a split of the training corpus.",
+    "preprocessing_filtering": "schemaforge/validation/gate.py's 4-step gate (JSON parse, Pydantic schema validation, source-support/ontology-derivation check, no-over-assertion check) is the only filtering; rejected examples are logged with reasons, not silently dropped, per logs/V2_TRAINING_FAILURES.md practice."
+  },
+
+  "training_configuration": {
+    "read_from": "src/02_train_distill.py at commit 0ea791b (literal constants, no config file)",
+    "distillation_method": "sequence-level knowledge distillation (cross-entropy on validated teacher outputs); NOT logit-level KL divergence — the cross-tokenizer logit KL used in the superseded V1 approach was found invalid (mismatched teacher/student tokenizers) and explicitly not carried forward, per docs/PROJECT_CHARTER.md §7.1",
+    "loss_function": "torch.nn.CrossEntropyLoss(ignore_index=-100), prompt tokens masked to -100 so only completion (teacher_json) tokens contribute to loss",
+    "teacher_loss_weighting_alpha_beta": "not applicable — no teacher forward pass or logit mixing at train time; teacher outputs are consumed purely as text labels for CE, generated offline in a separate stage",
+    "temperature": "not applicable to this CE-only objective (no softmax-temperature distillation term)",
+    "student_model_id": "openbmb/MiniCPM5-1B",
+    "max_sequence_length": 1024,
+    "batch_size": 2,
+    "gradient_accumulation_steps": 1,
+    "effective_batch_size": 2,
+    "num_epochs": 3,
+    "max_training_steps": "not fixed — derived as len(dataloader) * 3 epochs; len(dataloader) depends on the gate-admitted example count, unknown until the teacher stage completes",
+    "learning_rate": 2e-5,
+    "lr_scheduler": "cosine schedule with warmup (transformers.get_cosine_schedule_with_warmup)",
+    "warmup_steps": 2,
+    "weight_decay": 0.01,
+    "optimizer": "torch.optim.AdamW",
+    "gradient_clipping_max_norm": 1.0,
+    "precision": "bf16 if torch.cuda.is_bf16_supported() else fp16 (resolved at runtime by resolve_device_and_dtype(); MI300X supports bf16, so bf16 is expected — not yet confirmed from this run's own stdout since the retrain stage had not started at audit time)",
+    "gradient_checkpointing": "not enabled (no gradient_checkpointing_enable() call in src/02_train_distill.py)",
+    "attention_implementation": "unknown — not explicitly set; whatever transformers' AutoModelForCausalLM.from_pretrained default resolves to for this architecture/dtype on ROCm (no attn_implementation= argument passed)",
+    "lora_peft_quantization": "none — full-parameter fine-tune, no PEFT/LoRA/quantization",
+    "random_seed_training": "unknown — not recorded. src/02_train_distill.py does not call torch.manual_seed()/set a seed before training; DataLoader(shuffle=True) uses whatever the process's default RNG state is at that point, which is not deterministic/reproducible as written. This is a real reproducibility gap in the current script, not an omission of this manifest.",
+    "checkpoint_frequency": "single checkpoint at the end of all 3 epochs (student.save_pretrained(OUTPUT_DIR) called once, after the full training loop — no intermediate epoch checkpoints saved)",
+    "evaluation_frequency": "no in-loop evaluation — evaluation happens as a separate subsequent stage (src/08_hybrid_eval.py, src/07_failure_eval.py) after training completes, not interleaved with training steps",
+    "output_checkpoint_dir": "./models/distilled_minicpm5_1b_v2_amd",
+    "checkpoint_dir_note": "This path OVERWRITES the prior (iteration-5) checkpoint at the same location — unlike prior manual iterations in this project, src/02_train_distill.py itself does not rename/preserve the previous checkpoint before writing (that renaming was done manually by the operator before each prior manual run, e.g. `mv ... _iter3_166doc`). Whether that manual preservation step was performed before THIS run is recorded in the training_report.md's deviations section."
+  },
+
+  "training_performance": {
+    "start_timestamp_utc": "2026-08-09T07:32:38",
+    "start_timestamp_note": "Process start time from `ps -o lstart` on amd-training-2 for PID 22810 (src/01_generate_teacher.py, the first GPU-bound stage the loop launches).",
+    "end_timestamp_utc": null,
+    "total_wall_clock_duration": null,
+    "steps_completed": null,
+    "steps_per_second": null,
+    "samples_per_second": null,
+    "tokens_per_second": "unknown — not instrumented in src/02_train_distill.py or src/01_generate_teacher.py; would require adding timing/token-counting code, which was not done to avoid modifying the active run",
+    "peak_vram_bytes": null,
+    "peak_vram_note": "Point-in-time VRAM readings were taken via rocm-smi during the run for operational monitoring (see logs/V2_TRAINING_FAILURES.md and this session's chat log), not a continuous peak-tracking instrument — the single highest reading observed during the teacher-generation stage was ~76.7GB used GPU-wide (shared with the other agent's idle-but-resident ComfyUI process), not a peak specific to this job alone.",
+    "final_training_loss": null,
+    "final_validation_loss": "not applicable — no validation split (see dataset.train_val_test_split)",
+    "distillation_specific_loss_values": "not applicable — single CE loss only, no separate distillation-term breakdown to report",
+    "evaluation_metrics": null,
+    "checkpoints_produced": null,
+    "pending_note": "All null fields above are pending completion of the retrain and evaluation stages, which had not run yet at manifest-creation time. This file will be updated in place (same run_id) once the run finishes, per instruction not to fabricate or wait to publish partial results."
+  },
+
+  "final_artifacts": {
+    "checkpoint_used_for_huggingface_upload": null,
+    "checkpoint_used_for_huggingface_upload_note": "Not yet determined — depends on whether this run's evaluation numbers improve on the iteration-5 checkpoint already documented in logs/V2_TRAINING_FAILURES.md. To be filled in after evaluation."
+  }
+}

@@ -1,0 +1,17 @@
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+*.egg-info/
+.env
+
+# Large model/data artifacts (exceed GitHub's 100MB file limit)
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.gguf
+models/
