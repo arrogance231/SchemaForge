@@ -166,13 +166,16 @@ python3 -m schemaforge.hardexamples.generate --split train --n 30 \
    only the *data-generation* seed (`42`) is fixed and verified deterministic. This run's exact
    shuffle order and weight-init RNG state are not reproducible as the script is currently
    written. This is a pre-existing property of the script, not something introduced for this run.
-2. **Checkpoint overwrite.** `src/02_train_distill.py` always writes to
-   `./models/distilled_minicpm5_1b_v2_amd`, the same path as the prior (iteration-5) checkpoint.
-   Whether that prior checkpoint was manually renamed/preserved before this run started should be
-   confirmed against server state once this run completes (see the follow-up checklist below) —
-   prior manual iterations in this project renamed the previous checkpoint before retraining, but
-   `src/09_loop.py` does not automate that step, so it is not guaranteed to have happened before
-   this particular run.
+2. **Checkpoint overwrite — confirmed, not just a risk.** `src/02_train_distill.py` always writes
+   to `./models/distilled_minicpm5_1b_v2_amd`, the same path as the prior (iteration-5) checkpoint.
+   Checked server state after this run's retrain stage had already begun: only one checkpoint
+   directory exists, no `_iterN` backup was made before this run started. Prior manual iterations
+   in this project renamed the previous checkpoint first; `src/09_loop.py` does not automate that
+   step. **The iteration-5 checkpoint's weights will be lost once this run saves** (its evaluation
+   numbers remain preserved in `logs/V2_TRAINING_FAILURES.md` and the eval JSON reports — only the
+   weights themselves are not recoverable). This is a real gap in `src/09_loop.py` worth fixing
+   before the next loop invocation (have it rename the existing checkpoint dir before retraining,
+   the way the manual iterations did).
 3. **Attention implementation unspecified.** No `attn_implementation=` argument is passed to
    `from_pretrained`; whatever Transformers' default resolves to for this architecture/dtype on
    ROCm is what ran. Not independently confirmed.
@@ -192,8 +195,10 @@ This report was written mid-run to satisfy the "capture without interrupting" in
 following sections will be filled in once the run completes, editing this same file (same
 `run_id`) rather than creating a new one:
 
-- Teacher gate admitted/rejected counts and rejection rate for this specific run
-- Student model revision/snapshot hash
+- ~~Teacher gate admitted/rejected counts and rejection rate for this specific run~~ — **filled
+  in**: 634/1080 admitted (58.7%), 446/1080 rejected (41.3%); consistent with iteration 5's
+  636/1080 (58.9%) on the byte-identical corpus.
+- ~~Student model revision/snapshot hash~~ — **filled in**: `4e9de7a0778dc1c362e983e6858f0e77542cbdca`
 - Total training duration, steps completed, final training loss
 - Evaluation results (hybrid/model/rules field metrics, failure-category breakdown) from
   `src/08_hybrid_eval.py` / `src/07_failure_eval.py`

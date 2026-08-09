@@ -54,7 +54,7 @@
 
   "student_model": {
     "identifier": "openbmb/MiniCPM5-1B",
-    "revision": "unknown — not pinned in code; not yet downloaded to this server's HF cache at manifest-creation time (the retrain stage, which triggers the download, had not started yet during this audit — the running process was still in the teacher-generation stage). To be filled in from ~/.cache/huggingface/hub/models--openbmb--MiniCPM5-1B/snapshots/ once available, without interrupting the run.",
+    "revision": "unknown — not pinned in code by tag/version, but the HF cache snapshot hash observed on the training server once the retrain stage began downloading it (2026-08-09, ~09:47 UTC) is 4e9de7a0778dc1c362e983e6858f0e77542cbdca (recoverable from ~/.cache/huggingface/hub/models--openbmb--MiniCPM5-1B/snapshots/ on amd-training-2).",
     "architecture": "LlamaForCausalLM (per config.json of a prior identically-configured checkpoint from this same script)",
     "hidden_size": 1536,
     "num_hidden_layers": 24,
@@ -85,7 +85,7 @@
     "corpus_size_records": 1080,
     "corpus_sha256": "94afb6bb4befb11679cc5390d5cd89ce6d1f5580d0851b84cf007194d97f72de",
     "corpus_size_note": "sha256 matches the corpus used for the prior (iteration-5) run byte-for-byte, confirming the generator's determinism claim (same seed/params -> identical output).",
-    "teacher_output_dataset": "data/teacher_dataset.json, written by src/01_generate_teacher.py after the §4.2 validation gate (schemaforge/validation/gate.py) — admitted count pending, this stage was still running at manifest-creation time",
+    "teacher_output_dataset": "data/teacher_dataset.json, written by src/01_generate_teacher.py after the §4.2 validation gate (schemaforge/validation/gate.py). Admitted: 634/1080 (58.7%), rejected: 446/1080 (41.3%) — counted directly from the length of the written JSON array (the loop's own stdout-parsed rejection-rate line was not yet readable via the outer log at the time of this check, since 09_loop.py's subprocess.run(capture_output=True) buffers until the stage finishes; this count is independently verified from the artifact file itself, not the log). Consistent with iteration 5's 636/1080 (58.9%) on the byte-identical corpus — small run-to-run variance from non-deterministic teacher sampling, not a regression.",
     "teacher_gate_rejections_file": "data/teacher_dataset_rejections.json",
     "train_val_test_split": "no held-out validation/test split within the admitted training set — the model trains on 100% of gate-admitted examples; evaluation is against a SEPARATE eval corpus (data/eval_holdout.jsonl, 72 records spanning all 12 schemas including the 3 held-out ones) generated independently, not a split of the training corpus.",
     "preprocessing_filtering": "schemaforge/validation/gate.py's 4-step gate (JSON parse, Pydantic schema validation, source-support/ontology-derivation check, no-over-assertion check) is the only filtering; rejected examples are logged with reasons, not silently dropped, per logs/V2_TRAINING_FAILURES.md practice."
@@ -118,7 +118,7 @@
     "checkpoint_frequency": "single checkpoint at the end of all 3 epochs (student.save_pretrained(OUTPUT_DIR) called once, after the full training loop — no intermediate epoch checkpoints saved)",
     "evaluation_frequency": "no in-loop evaluation — evaluation happens as a separate subsequent stage (src/08_hybrid_eval.py, src/07_failure_eval.py) after training completes, not interleaved with training steps",
     "output_checkpoint_dir": "./models/distilled_minicpm5_1b_v2_amd",
-    "checkpoint_dir_note": "This path OVERWRITES the prior (iteration-5) checkpoint at the same location — unlike prior manual iterations in this project, src/02_train_distill.py itself does not rename/preserve the previous checkpoint before writing (that renaming was done manually by the operator before each prior manual run, e.g. `mv ... _iter3_166doc`). Whether that manual preservation step was performed before THIS run is recorded in the training_report.md's deviations section."
+    "checkpoint_dir_note": "CONFIRMED: this path OVERWRITES the prior (iteration-5) checkpoint at the same location. Checked amd-training-2:/root/schemaforge_v2/models/ at 09:5x UTC (after this run's retrain stage had already begun downloading the student model): only one checkpoint directory exists (distilled_minicpm5_1b_v2_amd), no _iterN backup was made before this run, unlike every prior manual iteration in this project which renamed the previous checkpoint first (e.g. `mv ... _iter3_166doc`). src/09_loop.py does not automate that preservation step. Practical consequence: the iteration-5 checkpoint's WEIGHTS are lost once this run's save_pretrained() call completes (its evaluation numbers remain preserved in logs/V2_TRAINING_FAILURES.md and the eval JSON reports, just not the weights themselves). Recorded as a real process gap in src/09_loop.py, not papered over."
   },
 
   "training_performance": {
