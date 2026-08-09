@@ -27,6 +27,13 @@ class Invoice(BaseModel):
     line_items: list[LineItem] | None = None
 
 
+ONTOLOGY = {
+    "Corp.": "Corporation",
+    "Inc.": "Incorporated",
+    "Intl.": "International",
+    "Tech.": "Technologies",
+}
+
 SPEC = SchemaSpec(
     name="invoice",
     model=Invoice,
@@ -45,7 +52,7 @@ SPEC = SchemaSpec(
         }
     ),
     semantic_fields=frozenset({"vendor_name", "line_items[].description"}),
-    ontology={},
+    ontology=ONTOLOGY,
 )
 
 register(SPEC)

@@ -77,6 +77,9 @@ def main():
     DATA_PATH = "./data/teacher_dataset.json"
     OUTPUT_DIR = "./models/distilled_minicpm5_1b_v2_amd"
 
+    SEED = 42
+    torch.manual_seed(SEED)
+
     device, dtype = resolve_device_and_dtype()
     print(f"[*] Resolved device={device}, dtype={dtype}")
 

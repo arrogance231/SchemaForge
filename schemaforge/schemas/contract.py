@@ -19,6 +19,12 @@ class Contract(BaseModel):
     jurisdiction: str | None = None
 
 
+ONTOLOGY = {
+    "MSA": "Master Services Agreement",
+    "NDA": "Non-Disclosure Agreement",
+    "SLA": "Software License Agreement",
+}
+
 SPEC = SchemaSpec(
     name="contract",
     model=Contract,
@@ -26,7 +32,7 @@ SPEC = SchemaSpec(
     semantic_fields=frozenset(
         {"contract_type", "party_a", "party_b", "auto_renewal", "jurisdiction"}
     ),
-    ontology={},
+    ontology=ONTOLOGY,
 )
 
 register(SPEC)

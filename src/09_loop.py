@@ -180,7 +180,9 @@ def run_iteration(args: argparse.Namespace, idx: int, dry_run: bool) -> dict:
         "teacher_n_admitted": None,
         "teacher_n_total": None,
         "teacher_rejection_rate_pct": None,
+        "checkpoint_backed_up_to": None,
         "checkpoint_sha256": None,
+        "train_log_file": None,
         "hybrid_metrics": None,
         "by_category": None,
         "top_failure_category": None,
@@ -197,7 +199,31 @@ def run_iteration(args: argparse.Namespace, idx: int, dry_run: bool) -> dict:
         record["teacher_n_total"] = total
         record["teacher_rejection_rate_pct"] = rejection
 
-        _run([sys.executable, "src/02_train_distill.py"], dry_run)
+        checkpoint_dir = os.path.join(REPO_ROOT, MODEL_DIR)
+        if os.path.isdir(checkpoint_dir):
+            if dry_run:
+                print(f"[dry-run] would back up existing checkpoint to {MODEL_DIR}_pre_iter{idx}")
+            else:
+                backup_path = os.path.join(REPO_ROOT, f"{MODEL_DIR}_pre_iter{idx}")
+                os.rename(checkpoint_dir, backup_path)
+                record["checkpoint_backed_up_to"] = backup_path
+
+        train_log_file = f"logs/loop_iter_{idx}_train.log"
+        train_cmd = [sys.executable, "src/02_train_distill.py"]
+        if dry_run:
+            print(f"[dry-run] would run: {train_cmd}")
+        else:
+            Path(REPO_ROOT, "logs").mkdir(parents=True, exist_ok=True)
+            with open(os.path.join(REPO_ROOT, train_log_file), "w", encoding="utf-8") as log_handle:
+                subprocess.run(
+                    train_cmd,
+                    stdout=log_handle,
+                    stderr=subprocess.STDOUT,
+                    check=True,
+                    cwd=REPO_ROOT,
+                )
+            record["train_log_file"] = train_log_file
+
         record["checkpoint_sha256"] = checkpoint_sha256(dry_run)
 
         hybrid_out = f"logs/loop_iter_{idx}_hybrid.json"

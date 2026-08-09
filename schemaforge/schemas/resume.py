@@ -16,6 +16,13 @@ class Resume(BaseModel):
     location: str | None = None
 
 
+ONTOLOGY = {
+    "Corp.": "Corporation",
+    "Inc.": "Incorporated",
+    "Intl.": "International",
+    "Tech.": "Technologies",
+}
+
 SPEC = SchemaSpec(
     name="resume",
     model=Resume,
@@ -30,7 +37,7 @@ SPEC = SchemaSpec(
             "location",
         }
     ),
-    ontology={},
+    ontology=ONTOLOGY,
 )
 
 register(SPEC)
