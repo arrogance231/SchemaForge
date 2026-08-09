@@ -464,3 +464,52 @@ in `src/09_loop.py` worth fixing before the next automated iteration):**
 uploaded iteration-5 checkpoint on every headline metric. Full provenance, including all fields
 explicitly marked `unknown — not recorded` rather than guessed:
 `experiments/loop-iter0-20260809T073238Z/manifest.json` and `training_report.md`.
+
+## Iteration 13 — 2026-08-09 — Retraining per plan: process fixes confirmed, F1 recovers to a tie with best
+
+**What ran.** Per the approved retraining plan (fix known `src/09_loop.py`/`src/02_train_distill.py`
+defects, then scale corpus + fill ontology gaps, run together as one iteration): `torch.manual_seed(42)`
+added to training, checkpoint backup-before-overwrite added to the loop, retrain stdout persistence
+added, corpus scaled from n=30 to n=75/schema/severity (2700 records), and `ontology` dicts
+populated for 5 previously-empty schemas (`contract`, `crm_record`, `invoice`, `receipt`, `resume`)
+sourced from the existing corruption-operator abbreviation glossary. Full provenance:
+`experiments/loop-iter1-20260809T100347Z/`.
+
+**Process fixes confirmed working, not just implemented:**
+- Checkpoint preserved: `models/distilled_minicpm5_1b_v2_amd_pre_iter0` exists (loop-iter0's
+  checkpoint, F1 0.6432, no longer at risk of silent loss).
+- Training log recovered: `logs/loop_iter1_train.log` has real per-epoch losses (0.0382 → 0.0089
+  → 0.0052) — the first automated-loop run in this project with this data available after the
+  fact.
+- Gate rejection rate: 39.7% (1627/2700 admitted) vs. 41.3%/41.1% in the two prior comparable
+  runs — a modest, directionally-consistent-with-the-ontology-fix improvement.
+
+**Result — hybrid field F1 0.6830, recovering from iteration 12's regression but tying (not
+clearly beating) the all-time best:**
+
+| system | field precision | field recall | field F1 | hallucination rate | schema validity |
+|---|---|---|---|---|---|
+| rules alone | 0.9185 | 0.1729 | 0.2911 | 0.0000 | 1.0000 |
+| model alone | 0.4828 | 0.4686 | 0.4756 | 0.1121 | 0.8611 |
+| **hybrid** | **0.7302** | **0.6416** | **0.6830** | **0.0095** | **0.8750** |
+
+vs. iteration 5/10 (0.6858, still the all-time best by 0.0028 — within this project's own observed
+run-to-run noise band, per iteration 12's evidence of similar-magnitude variance on a near-identical
+setup) and vs. iteration 12 (0.6432, a +0.0398 recovery). **This run does not isolate which of the
+simultaneous changes (seed, corpus scale, ontology fills) drove the recovery** — that attribution
+tradeoff was accepted deliberately per the plan, not an oversight; a future controlled run would
+need to vary one factor at a time to say more.
+
+**Real unresolved non-result:** `incorrect_normalization` stayed at exactly 0 despite the ontology
+fills — either the small 72-record eval set didn't happen to surface a normalization case this
+time, or the fix's effect is concentrated in training-corpus admission rather than eval-time
+behavior. Not resolved by this run.
+
+**`missing_field` remains the dominant failure category** (202 instances, barely moved from
+214/219 in prior runs) — none of this run's changes directly targeted it.
+
+**Checkpoint decision: NOT uploaded to Hugging Face.** A tie within noise isn't grounds to replace
+the already-published iteration-5 checkpoint. Total duration: 6h 2m 40s (teacher generation over
+the 2700-record corpus dominated; retrain+eval added only minutes, consistent with iteration 12).
+Full manifest and analysis: `experiments/loop-iter1-20260809T100347Z/manifest.json` and
+`training_report.md`.

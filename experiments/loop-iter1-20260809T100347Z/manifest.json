@@ -1,0 +1,112 @@
+{
+  "run_id": "loop-iter1-20260809T100347Z",
+  "status": "completed",
+  "status_note": "Retraining run per the approved plan at /home/arro/.claude/plans/buzzing-tickling-sphinx.md: Tier 0 process fixes (seed, checkpoint backup, retrain log persistence) applied first, then Tier 1 corpus scale-up (n=30->75) + ontology fills for 5 schemas, run together as one comparable iteration.",
+
+  "provenance": {
+    "git_commit": "89c2f9b3e57e5719ad168472600786bb395c7d47",
+    "git_commit_timestamp": "2026-08-09T10:02:43+00:00",
+    "git_branch": "master",
+    "git_working_tree_dirty_at_launch": false,
+    "repo_url": "git@github.com:arrogance231/LLM.git",
+    "repo_subpath": "projects/gemma_minicpm_json_distillation",
+    "orchestrator_script": "src/09_loop.py",
+    "exact_launch_command": [
+      "python3", "src/09_loop.py",
+      "--eval-jsonl", "data/eval_holdout.jsonl",
+      "--n-per-schema", "75",
+      "--state-file", "logs/loop_state.jsonl",
+      "--max-iterations", "1"
+    ],
+    "config_files_used": "none -- see loop-iter0-20260809T073238Z/manifest.json for the standing note on this project's config-file-free convention.",
+    "cli_overrides_of_defaults": "--n-per-schema 75 (default 30) -- the only override; severities/seed/operators left at src/09_loop.py's defaults (0.0,0.3,0.6,0.9 / 42 / all operators)."
+  },
+
+  "hardware_environment": {
+    "gpu_count": 1,
+    "gpu_model": "AMD Instinct MI300X VF",
+    "gpu_vram_total_bytes": 205822885888,
+    "rocm_version": "7.0.2",
+    "server_ssh_alias_local": "amd-training-2",
+    "python_version": "3.12.3",
+    "torch_version": "2.11.0.dev20260206+rocm7.0",
+    "transformers_version": "5.14.1",
+    "compute_attribution": "GPU access provided by the AMD AI Developer Program. This statement documents the compute source; it is not a claim of AMD endorsement or review of the research.",
+    "shared_gpu_note": "Same shared server as loop-iter0; a second, independently-run agent session was active (varying levels of GPU compute contention) during this run too. Total wall-clock duration should be read with that caveat, same as the prior run."
+  },
+
+  "teacher_model": {
+    "identifier": "google/gemma-4-31B",
+    "revision": "unpinned in code; see loop-iter0 manifest for the last-observed cache snapshot hash (unchanged, same server/cache)."
+  },
+
+  "student_model": {
+    "identifier": "openbmb/MiniCPM5-1B",
+    "revision": "unpinned in code; see loop-iter0 manifest for the last-observed cache snapshot hash (4e9de7a0778dc1c362e983e6858f0e77542cbdca) -- not re-checked for this run since the cache was already populated from the prior run and this run's retrain stage does not necessarily re-print a fresh download event.",
+    "parameter_count_estimate": 1042808832,
+    "parameter_count_estimate_note": "unchanged from loop-iter0 (same architecture)."
+  },
+
+  "dataset": {
+    "source": "schemaforge.hardexamples.generate",
+    "generation_command": [
+      "python3", "-m", "schemaforge.hardexamples.generate",
+      "--split", "train", "--n", "75", "--severities", "0.0,0.3,0.6,0.9",
+      "--seed", "42", "--out", "data/hard_examples_train.jsonl"
+    ],
+    "seed": 42,
+    "n_per_schema_per_severity": 75,
+    "n_per_schema_note": "2.5x loop-iter0's n=30, per the approved plan's Tier 1 corpus-scale-up step.",
+    "severities": [0.0, 0.3, 0.6, 0.9],
+    "corpus_size_records": 2700,
+    "teacher_output_dataset": "data/teacher_dataset.json",
+    "teacher_gate_admitted": 1627,
+    "teacher_gate_total": 2700,
+    "teacher_gate_rejection_rate_pct": 39.7,
+    "teacher_gate_rejection_rate_comparison": "39.7% vs. loop-iter0's 41.3% and iteration-5's 41.1% -- a modest ~1.5-1.6pp improvement, directionally consistent with (but not proof of) the ontology-fill change reducing false source-support rejections for the 5 affected schemas; the corpus is also 2.5x larger and spans different specific documents, so this is not a controlled isolation of the ontology fix's effect alone.",
+    "preprocessing_filtering": "schemaforge/validation/gate.py's 4-step gate, unchanged from prior runs; ontology dicts for 5 schemas (contract, crm_record, invoice, receipt, resume) were populated before this run (see git_commit above), which changes step 3's (source-support) behavior for those schemas specifically."
+  },
+
+  "training_configuration": {
+    "read_from": "src/02_train_distill.py at commit 89c2f9b",
+    "changes_from_loop_iter0": "torch.manual_seed(42) added before the shuffled DataLoader is constructed (Tier 0 fix #1) -- this run is the first in this project with a fixed training seed. All other hyperparameters (LR 2e-5, batch_size 2, 3 epochs, AdamW, cosine schedule, bf16, no PEFT/gradient-checkpointing) are unchanged from every prior run -- see loop-iter0-20260809T073238Z/manifest.json for the full literal values, not repeated here since nothing else changed.",
+    "precision_confirmed": "bf16 -- confirmed from the saved checkpoint's config.json (\"dtype\": \"bfloat16\")."
+  },
+
+  "training_performance": {
+    "start_timestamp_utc": "2026-08-09T10:03:47.093788",
+    "start_timestamp_note": "From the loop's own record[\"timestamp\"] field, set at the start of run_iteration().",
+    "end_timestamp_utc": "2026-08-09T16:06:27",
+    "end_timestamp_note": "mtime of logs/loop_state.jsonl on amd-training-2 after this run's record was appended.",
+    "total_wall_clock_duration": "6h 2m 40s (21760s) for the FULL loop (corpus generation + teacher query/gate + retrain + hybrid benchmark + failure analysis) -- teacher generation over the 2700-record corpus was overwhelmingly the dominant cost, consistent with loop-iter0's finding that retrain+eval together take only minutes regardless of this scale difference.",
+    "shared_gpu_caveat": "Measured on a shared GPU; not a clean single-tenant benchmark (see hardware_environment.shared_gpu_note).",
+    "per_epoch_loss": {
+      "epoch_1_avg_loss": 0.0382,
+      "epoch_2_avg_loss": 0.0089,
+      "epoch_3_avg_loss": 0.0052,
+      "note": "Successfully recovered for the FIRST time in this project's automated-loop runs, thanks to Tier 0 fix #3 (src/09_loop.py now redirects the retrain subprocess's stdout to logs/loop_iter_0_train.log instead of discarding it). Loss trajectory is similar in shape to every manually-launched prior run (steep drop by epoch 2, near-convergence by epoch 3) -- not obviously indicative of overfitting or divergence on its own, though the model_alone eval hallucination_rate rising slightly (0.085 -> 0.112 vs loop-iter0) alongside this near-zero loss is worth watching in a future iteration's failure analysis.",
+      "log_file": "logs/loop_iter1_train.log (local copy of the server's logs/loop_iter_0_train.log)"
+    },
+    "checkpoint_backup_confirmed": {
+      "backed_up": true,
+      "backup_path": "models/distilled_minicpm5_1b_v2_amd_pre_iter0",
+      "note": "Tier 0 fix #2 confirmed working: the loop-iter0 checkpoint (this project's then-current-best, F1 0.6432) was renamed before this run's retrain stage overwrote models/distilled_minicpm5_1b_v2_amd, instead of being silently lost the way iteration-5's checkpoint was before this fix existed."
+    },
+    "evaluation_metrics": {
+      "eval_corpus": "data/eval_holdout.jsonl (72 records, all 12 schemas including the 3 held-out ones) -- same corpus used for every iteration since iteration 4, so these numbers are directly comparable across all of them.",
+      "rules_alone": {"field_precision": 0.9185185185185185, "field_recall": 0.17294281729428174, "field_f1": 0.29107981220657275, "hallucination_rate": 0.0, "schema_validity": 1.0},
+      "model_alone_residual_prompt": {"field_precision": 0.4827586206896552, "field_recall": 0.4686192468619247, "field_f1": 0.475583864118896, "hallucination_rate": 0.11206896551724138, "schema_validity": 0.8611111111111112},
+      "hybrid": {"field_precision": 0.7301587301587301, "field_recall": 0.6415620641562064, "field_f1": 0.6829992576095026, "hallucination_rate": 0.009523809523809525, "schema_validity": 0.875},
+      "failure_by_category": {"missing_field": 202, "unclassified_mismatch": 89, "hallucinated_field": 45, "incorrect_nesting": 15, "ambiguous_input": 7, "wrong_entity_boundary": 6, "schema_violation": 1, "incorrect_normalization": 0, "wrong_inferred_value": 0},
+      "comparison_to_prior_best": "Hybrid field F1 0.6830 vs. iteration-5/10's 0.6858 (still the all-time best, by a margin of 0.0028 -- essentially a tie within noise given loop-iter0 showed run-to-run variance of this same magnitude) and vs. loop-iter0's 0.6432 (a recovery of +0.0398, consistent with the Tier 0/Tier 1 fixes helping, though which specific fix contributed how much is NOT isolated by this run -- seed, corpus scale, and ontology fills were all changed together per the plan's stated tradeoff of comparable-attribution-in-one-run over more, slower, separately-isolated runs).",
+      "incorrect_normalization_still_zero": "Despite the ontology fills for 5 schemas, incorrect_normalization is STILL 0 in this run's failure analysis. This is a real, notable non-result: either the eval set's specific corruptions didn't happen to produce an abbreviation-derived mismatch this time (plausible given the small 72-record eval set and the failure category's rarity even before the fix), or the fix's effect is concentrated in the training corpus (raising gate admission rate, which happened) rather than in eval-time model behavior. Not resolved by this run; a larger/more targeted eval set would be needed to say more."
+    },
+    "checkpoints_produced": 1,
+    "checkpoint_sha256": "1a2669094f97fb6837c9709cfc3b391350229a3743902149ddaa5cc972cf7477"
+  },
+
+  "final_artifacts": {
+    "checkpoint_used_for_huggingface_upload": false,
+    "checkpoint_used_for_huggingface_upload_note": "NOT an unambiguous improvement over the already-uploaded iteration-5 checkpoint (0.6830 vs 0.6858 hybrid F1 -- a tie within this project's observed run-to-run noise band, not a clean win). Recommendation: do not replace the current HF upload yet; treat this as confirmation the Tier 0/1 fixes work and the pipeline is now more reproducible, and pursue a further-scaled or seed-averaged run before changing the public checkpoint."
+  }
+}
