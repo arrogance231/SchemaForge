@@ -1,10 +1,9 @@
 ---
 run_id: loop-iter0-20260809T073238Z
-status: IN PROGRESS — this report was written while training was still running, per explicit
-  instruction not to interrupt it. It will be updated in place (not superseded) once the run
-  finishes. See manifest.json in this directory for the machine-readable version of everything
-  below.
-last_updated: 2026-08-09 (mid-run audit)
+status: COMPLETED — 2026-08-09T09:50:49Z. Originally drafted mid-run per explicit instruction not
+  to interrupt training, then updated in place (not superseded) as each stage completed. See
+  manifest.json in this directory for the machine-readable version of everything below.
+last_updated: 2026-08-09 (run completion)
 ---
 
 # Training Report — loop-iter0-20260809T073238Z
@@ -158,7 +157,45 @@ python3 -m schemaforge.hardexamples.generate --split train --n 30 \
 
 - **Start**: 2026-08-09 07:32:38 UTC (process start time of the teacher-generation stage, the
   first GPU-bound step the loop launches).
-- **End / total duration**: not yet available — run in progress at time of writing.
+- **End**: 2026-08-09 09:50:49 UTC.
+- **Total wall-clock duration**: 2h 18m 11s, for the FULL loop (corpus generation + teacher
+  query/gate + retrain + hybrid benchmark + failure analysis) — not retraining alone; the
+  retrain-only duration is not separately recorded (see Results below).
+- Measured on a GPU shared with a second, independently-run agent session — not a clean
+  single-tenant throughput benchmark.
+
+## Results
+
+| system | field precision | field recall | field F1 | hallucination rate | schema validity |
+|---|---|---|---|---|---|
+| rules alone | 0.9185 | 0.1729 | 0.2911 | 0.0000 | 1.0000 |
+| model alone (residual prompt) | 0.4852 | 0.4128 | 0.4461 | 0.0852 | 0.7361 |
+| **hybrid** | **0.7131** | **0.5858** | **0.6432** | **0.0136** | **0.8333** |
+
+Teacher gate: **634/1080 admitted (58.7%)**, 446/1080 rejected (41.3%) — consistent with
+iteration 5's 636/1080 (58.9%) on the byte-identical generated corpus.
+
+Failure-category breakdown (72-record eval set): `missing_field` 214, `unclassified_mismatch` 84,
+`hallucinated_field` 43, `incorrect_nesting` 12, `ambiguous_input` 7, `wrong_entity_boundary` 6,
+`schema_violation` 2, `wrong_inferred_value` 2, `incorrect_normalization` 0 — `missing_field`
+remains the dominant category, consistent with iteration 8's finding.
+
+**Notable: this run's hybrid field F1 (0.6432) is LOWER than iteration 5/10's (0.6858) on an
+almost identical corpus** (634 vs 636 admitted examples, same generation seed/params). This is
+real run-to-run variance, not a data-scale effect — most plausibly explained by the unfixed
+training seed (deviation #1 below: DataLoader shuffle order and other nondeterministic ops are
+not controlled) combined with ordinary teacher-sampling variance (634 vs 636 admitted, so not
+byte-identical training sets either). This is reported as a genuine, currently-unexplained
+regression, not smoothed over or attributed to a specific cause without evidence.
+
+**Checkpoint**: 1 produced, sha256 `0bfd865f9e74f749387cd3e801865eba42e8698fcc189057a1613ce1f7c5447e`,
+confirmed bf16 precision (from the saved `config.json`). **Not recommended as the next Hugging
+Face upload** — it scores lower than the already-uploaded iteration-5 checkpoint, whose weights
+are no longer recoverable on disk (see deviation #2) even though its evaluation numbers remain
+documented in `logs/V2_TRAINING_FAILURES.md`.
+
+**Per-epoch training loss and step count for this run are NOT recoverable** — see deviation
+below; this is a real gap in `src/09_loop.py`, not an omission of this report.
 
 ## Known deviations / caveats already identified
 
@@ -166,42 +203,42 @@ python3 -m schemaforge.hardexamples.generate --split train --n 30 \
    only the *data-generation* seed (`42`) is fixed and verified deterministic. This run's exact
    shuffle order and weight-init RNG state are not reproducible as the script is currently
    written. This is a pre-existing property of the script, not something introduced for this run.
-2. **Checkpoint overwrite — confirmed, not just a risk.** `src/02_train_distill.py` always writes
-   to `./models/distilled_minicpm5_1b_v2_amd`, the same path as the prior (iteration-5) checkpoint.
-   Checked server state after this run's retrain stage had already begun: only one checkpoint
-   directory exists, no `_iterN` backup was made before this run started. Prior manual iterations
-   in this project renamed the previous checkpoint first; `src/09_loop.py` does not automate that
-   step. **The iteration-5 checkpoint's weights will be lost once this run saves** (its evaluation
-   numbers remain preserved in `logs/V2_TRAINING_FAILURES.md` and the eval JSON reports — only the
-   weights themselves are not recoverable). This is a real gap in `src/09_loop.py` worth fixing
-   before the next loop invocation (have it rename the existing checkpoint dir before retraining,
-   the way the manual iterations did).
-3. **Attention implementation unspecified.** No `attn_implementation=` argument is passed to
+2. **Checkpoint overwrite — confirmed, happened.** `src/02_train_distill.py` always writes to
+   `./models/distilled_minicpm5_1b_v2_amd`, the same path as the prior (iteration-5) checkpoint.
+   No `_iterN` backup was made before this run started (prior manual iterations renamed the
+   previous checkpoint first; `src/09_loop.py` does not automate that step). **The iteration-5
+   checkpoint's weights are now gone**, overwritten by this run's save — its evaluation numbers
+   remain preserved in `logs/V2_TRAINING_FAILURES.md` and the eval JSON reports, only the weights
+   themselves are unrecoverable. Fix for next time: have `src/09_loop.py` rename the existing
+   checkpoint dir before retraining, the way the manual iterations did.
+3. **Per-epoch loss and step count not recoverable.** `src/02_train_distill.py` prints per-step
+   and per-epoch loss to stdout, but `src/09_loop.py`'s `_run()` helper calls
+   `subprocess.run(capture_output=True)` and never prints or persists that captured stdout for the
+   retrain step (it's only used to regex-parse the corpus-generation and teacher-gate stages'
+   output) — so this run's full training log was captured by the OS pipe and discarded when the
+   subprocess finished. Fix for next time: have each stage's subprocess redirect to its own log
+   file (`> logs/<stage>_<run_id>.log`), the way every manually-launched run in this project's
+   history did.
+4. **Attention implementation unspecified.** No `attn_implementation=` argument is passed to
    `from_pretrained`; whatever Transformers' default resolves to for this architecture/dtype on
    ROCm is what ran. Not independently confirmed.
-4. **No token-throughput instrumentation.** Neither `01_generate_teacher.py` nor
+5. **No token-throughput instrumentation.** Neither `01_generate_teacher.py` nor
    `02_train_distill.py` logs tokens/sec or samples/sec; deliberately not added mid-run to avoid
-   touching the active training process. If this metric matters going forward, it should be added
-   in a *future* run, not backfilled here.
+   touching the active training process.
 
 ## Failed/interrupted portions
 
-None observed as of this writing — the run was progressing normally (teacher-generation stage,
-process state `R`/running, steady CPU-time accumulation) at the time of this audit.
+None. The run completed all five stages (corpus generation, teacher query + gate, retrain, hybrid
+benchmark, failure analysis) and exited cleanly.
 
-## What's still pending in this report
+## Reproducibility gaps that remain
 
-This report was written mid-run to satisfy the "capture without interrupting" instruction. The
-following sections will be filled in once the run completes, editing this same file (same
-`run_id`) rather than creating a new one:
-
-- ~~Teacher gate admitted/rejected counts and rejection rate for this specific run~~ — **filled
-  in**: 634/1080 admitted (58.7%), 446/1080 rejected (41.3%); consistent with iteration 5's
-  636/1080 (58.9%) on the byte-identical corpus.
-- ~~Student model revision/snapshot hash~~ — **filled in**: `4e9de7a0778dc1c362e983e6858f0e77542cbdca`
-- Total training duration, steps completed, final training loss
-- Evaluation results (hybrid/model/rules field metrics, failure-category breakdown) from
-  `src/08_hybrid_eval.py` / `src/07_failure_eval.py`
-- Number of checkpoints produced and which one (if any) becomes the next Hugging-Face upload
-- Confirmation of which precision (bf16/fp16) and attention implementation actually resolved at
-  runtime, read from this run's own stdout/log once available
+- **Training seed is not fixed** (deviation #1) — this run cannot be exactly reproduced even with
+  the same corpus, and is the leading suspect for why this run's hybrid F1 (0.6432) came in lower
+  than the near-identical-corpus iteration-5/10 run's (0.6858), though that attribution is not
+  proven, only plausible.
+- **Per-epoch loss/step-count is lost for this specific run** (deviation #3) — the training
+  dynamics (did loss converge smoothly, was there a spike, etc.) cannot be inspected after the
+  fact for this run, only for the manually-launched prior iterations which redirected stdout to a
+  file.
+- **Attention implementation** was not independently confirmed (deviation #4).

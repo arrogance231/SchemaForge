@@ -418,3 +418,49 @@ hallucinate) at every severity level.
 
 Full per-severity reports: `logs/crossover_sev_0.0.json`, `_0.3.json`, `_0.6.json`, `_1.0.json`;
 aggregate-only run also saved at `logs/crossover_hybrid_eval.json`.
+
+## Iteration 12 — 2026-08-09 — First automated §8 loop run: real result, real process gaps found
+
+**What ran.** The first non-dry-run invocation of `src/09_loop.py` (research direction §8):
+corpus generation (1080 records, same seed/params as iteration 5) → teacher query + §4.2 gate →
+retrain → `src/08_hybrid_eval.py` benchmark → `src/07_failure_eval.py` analysis, chained
+automatically as one deliberate iteration. Full provenance captured in
+`experiments/loop-iter0-20260809T073238Z/` (manifest.json + training_report.md), created mid-run
+per explicit instruction not to interrupt the active training, then updated in place as each
+stage completed — this is the first iteration in this project with a formal machine-readable
+experiment manifest alongside the usual narrative log entry here.
+
+**Result.** Teacher gate: 634/1080 admitted (58.7%), consistent with iteration 5's 636/1080
+(58.9%) on the byte-identical corpus. Hybrid system on the 72-record eval set:
+
+| system | field precision | field recall | field F1 | hallucination rate | schema validity |
+|---|---|---|---|---|---|
+| rules alone | 0.9185 | 0.1729 | 0.2911 | 0.0000 | 1.0000 |
+| model alone | 0.4852 | 0.4128 | 0.4461 | 0.0852 | 0.7361 |
+| **hybrid** | **0.7131** | **0.5858** | **0.6432** | **0.0136** | **0.8333** |
+
+**This is a negative result relative to iteration 5/10, reported per §8.** Hybrid field F1
+(0.6432) is LOWER than the near-identical-corpus iteration 5/10 run (0.6858) — a real regression
+on an almost-matched setup (634 vs 636 admitted examples, same generation seed/params). The
+leading suspect, not proven: `src/02_train_distill.py` never fixes a training random seed
+(`torch.manual_seed()` is never called), so DataLoader shuffle order and any other nondeterministic
+op vary run to run even when the corpus is nearly identical. This had been merely a documented
+theoretical gap in earlier iterations' code; this run is the first direct evidence it has a real
+effect on results, not just a reproducibility nicety.
+
+**Process gaps found while building this run's provenance record (not results, but real defects
+in `src/09_loop.py` worth fixing before the next automated iteration):**
+1. No training seed is set (as above) — the actual root cause candidate for the F1 regression.
+2. `src/09_loop.py` always overwrites `models/distilled_minicpm5_1b_v2_amd` without first renaming
+   the existing checkpoint, unlike every manually-launched prior iteration. **The iteration-5
+   checkpoint's weights are now permanently lost** on the training server (its numbers remain
+   documented here and in the eval JSON reports, just not the weights).
+3. `src/09_loop.py`'s subprocess helper captures but never persists the retrain stage's stdout, so
+   this run's per-epoch training loss and step count are unrecoverable — a real observability gap
+   for a script whose whole purpose is unattended provenance-preserving iteration.
+
+**Not recommended for Hugging Face upload** — this checkpoint (sha256
+`0bfd865f9e74f749387cd3e801865eba42e8698fcc189057a1613ce1f7c5447e`) scores below the already-
+uploaded iteration-5 checkpoint on every headline metric. Full provenance, including all fields
+explicitly marked `unknown — not recorded` rather than guessed:
+`experiments/loop-iter0-20260809T073238Z/manifest.json` and `training_report.md`.

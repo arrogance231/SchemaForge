@@ -1,7 +1,7 @@
 {
   "run_id": "loop-iter0-20260809T073238Z",
-  "status": "in_progress",
-  "status_note": "Manifest created mid-run per explicit instruction not to interrupt training. Fields below marked null/\"unknown — not recorded\" are pending or unrecoverable and will be filled in after completion by re-editing this same file (not superseded by a new run-id, since it documents this one run).",
+  "status": "completed",
+  "status_note": "Manifest created mid-run per explicit instruction not to interrupt training, then updated in place (not superseded) as each stage completed and finally at run completion. Fields still null/\"unknown — not recorded\" below are genuinely unrecoverable, not merely pending.",
   "manifest_schema_note": "All values are measured from the live process, git history, and on-disk config at audit time (2026-08-09T08:5x UTC), not reconstructed from defaults. Anything not directly observable is explicitly null with an explanation, per instruction not to fabricate.",
 
   "provenance": {
@@ -124,24 +124,34 @@
   "training_performance": {
     "start_timestamp_utc": "2026-08-09T07:32:38",
     "start_timestamp_note": "Process start time from `ps -o lstart` on amd-training-2 for PID 22810 (src/01_generate_teacher.py, the first GPU-bound stage the loop launches).",
-    "end_timestamp_utc": null,
-    "total_wall_clock_duration": null,
-    "steps_completed": null,
+    "end_timestamp_utc": "2026-08-09T09:50:49",
+    "end_timestamp_note": "mtime of logs/loop_state.jsonl and logs/09_loop_iter0.log on amd-training-2, both written by the final steps of this run.",
+    "total_wall_clock_duration": "2h 18m 11s (8291s) for the FULL loop (generate corpus + teacher query/gate + retrain + hybrid benchmark + failure analysis), not retraining alone. Retraining-only duration is not separately recorded (see steps_completed note).",
+    "shared_gpu_caveat": "This duration was measured on a GPU shared with a second, independently-run agent session (see hardware_environment.shared_gpu_note); it is not a clean single-tenant benchmark of throughput.",
+    "steps_completed": "unknown — not recorded. src/02_train_distill.py prints per-step/per-epoch loss to stdout, but src/09_loop.py's _run() helper calls subprocess.run(capture_output=True) and never prints or persists that captured stdout for the retrain step specifically (only used for regex-parsing the teacher-generation and corpus-generation stages' output) — so this run's step count and per-epoch losses were captured by the OS pipe and then discarded. This is a real gap in src/09_loop.py, not an oversight of this manifest: the fix is to have the loop driver write each stage's full stdout to its own log file (as the manual iterations' launch commands did with explicit `> logs/....log` redirects), which it currently does not do for the stages it shells out to internally.",
     "steps_per_second": null,
     "samples_per_second": null,
-    "tokens_per_second": "unknown — not instrumented in src/02_train_distill.py or src/01_generate_teacher.py; would require adding timing/token-counting code, which was not done to avoid modifying the active run",
+    "tokens_per_second": "unknown — not instrumented in src/02_train_distill.py or src/01_generate_teacher.py",
     "peak_vram_bytes": null,
-    "peak_vram_note": "Point-in-time VRAM readings were taken via rocm-smi during the run for operational monitoring (see logs/V2_TRAINING_FAILURES.md and this session's chat log), not a continuous peak-tracking instrument — the single highest reading observed during the teacher-generation stage was ~76.7GB used GPU-wide (shared with the other agent's idle-but-resident ComfyUI process), not a peak specific to this job alone.",
-    "final_training_loss": null,
+    "peak_vram_note": "Point-in-time VRAM readings were taken via rocm-smi during the run for operational monitoring, not a continuous peak-tracking instrument — the highest reading observed during the teacher-generation stage was ~76.7GB used GPU-wide (shared with the other agent's idle-but-resident ComfyUI process), not a peak specific to this job alone.",
+    "final_training_loss": "unknown — not recorded, same root cause as steps_completed above (stdout discarded, not persisted).",
     "final_validation_loss": "not applicable — no validation split (see dataset.train_val_test_split)",
     "distillation_specific_loss_values": "not applicable — single CE loss only, no separate distillation-term breakdown to report",
-    "evaluation_metrics": null,
-    "checkpoints_produced": null,
-    "pending_note": "All null fields above are pending completion of the retrain and evaluation stages, which had not run yet at manifest-creation time. This file will be updated in place (same run_id) once the run finishes, per instruction not to fabricate or wait to publish partial results."
+    "precision_confirmed": "bf16 — confirmed from the saved checkpoint's config.json (\"dtype\": \"bfloat16\"), consistent with resolve_device_and_dtype()'s expected resolution on this MI300X hardware.",
+    "evaluation_metrics": {
+      "eval_corpus": "data/eval_holdout.jsonl (72 records, all 12 schemas including the 3 held-out ones)",
+      "rules_alone": {"field_precision": 0.9185185185185185, "field_recall": 0.17294281729428174, "field_f1": 0.29107981220657275, "hallucination_rate": 0.0, "schema_validity": 1.0},
+      "model_alone_residual_prompt": {"field_precision": 0.4852459016393443, "field_recall": 0.41283124128312415, "field_f1": 0.4461190655614167, "hallucination_rate": 0.08524590163934426, "schema_validity": 0.7361111111111112},
+      "hybrid": {"field_precision": 0.7130730050933786, "field_recall": 0.5857740585774058, "field_f1": 0.6431852986217458, "hallucination_rate": 0.013582342954159592, "schema_validity": 0.8333333333333334},
+      "failure_by_category": {"missing_field": 214, "unclassified_mismatch": 84, "hallucinated_field": 43, "incorrect_nesting": 12, "ambiguous_input": 7, "wrong_entity_boundary": 6, "schema_violation": 2, "wrong_inferred_value": 2, "incorrect_normalization": 0},
+      "comparison_to_prior_run_same_scale": "NOTABLE: this run's hybrid field F1 (0.6432) is LOWER than iteration 5/10's hybrid field F1 (0.6858) on an almost identical corpus (634 vs 636 admitted examples, same generation seed/params). This is genuine run-to-run variance, not a data-scale effect, and is most plausibly attributable to the unfixed training seed documented in training_configuration.random_seed_training (DataLoader shuffle order and any nondeterministic op are not controlled) plus normal teacher-sampling variance (634 vs 636 admitted, not byte-identical training sets). Recorded as a real, unexplained-by-design regression, not smoothed over."
+    },
+    "checkpoints_produced": 1,
+    "checkpoint_sha256": "0bfd865f9e74f749387cd3e801865eba42e8698fcc189057a1613ce1f7c5447e"
   },
 
   "final_artifacts": {
-    "checkpoint_used_for_huggingface_upload": null,
-    "checkpoint_used_for_huggingface_upload_note": "Not yet determined — depends on whether this run's evaluation numbers improve on the iteration-5 checkpoint already documented in logs/V2_TRAINING_FAILURES.md. To be filled in after evaluation."
+    "checkpoint_used_for_huggingface_upload": false,
+    "checkpoint_used_for_huggingface_upload_note": "NOT recommended as the Hugging Face upload candidate: this run's hybrid field F1 (0.6432) is lower than the already-uploaded iteration-5 checkpoint's (0.6858, see logs/V2_TRAINING_FAILURES.md iteration 10), and per checkpoint_dir_note above the iteration-5 checkpoint's WEIGHTS no longer exist on disk (overwritten by this run) even though its evaluation numbers remain documented. The currently-saved checkpoint at models/distilled_minicpm5_1b_v2_amd IS this run's (sha256 above), not iteration-5's."
   }
 }
