@@ -2,7 +2,7 @@
 02_train_distill.py - V2 (AMD MI300X) Sequence-Level Knowledge Distillation
 Student: openbmb/MiniCPM5-1B | Teacher outputs generated offline in 01_generate_teacher.py
 Dataset: 15 Aligned Multi-Domain Pairs (data/teacher_dataset.json)
-Params: CE-only (no KL, no teacher loaded at train time), LR=2e-5, Weight Decay=0.01, 3 Epochs
+Params: CE-only (no KL, no teacher loaded at train time), LR=2e-5, Weight Decay=0.01, epoch count set by NUM_EPOCHS
 Hardware: AMD Instinct MI300X (192GB) via SSH, device-agnostic (CUDA/ROCm/CPU),
           GPU credits provided by the AMD AI Developer Program
 Output Checkpoint: ./models/distilled_minicpm5_1b_v2_amd
@@ -77,6 +77,8 @@ def main():
     DATA_PATH = "./data/teacher_dataset.json"
     OUTPUT_DIR = "./models/distilled_minicpm5_1b_v2_amd"
 
+    NUM_EPOCHS = 2
+
     SEED = 42
     torch.manual_seed(SEED)
 
@@ -100,11 +102,11 @@ def main():
 
     criterion = nn.CrossEntropyLoss(ignore_index=-100)
     optimizer = AdamW(student.parameters(), lr=2e-5, weight_decay=0.01)
-    scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=2, num_training_steps=len(dataloader) * 3)
+    scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=2, num_training_steps=len(dataloader) * NUM_EPOCHS)
 
-    print("[*] Starting V2 (AMD MI300X) Sequence-Level KD Loop (15 Multi-Domain Pairs, 3 Epochs)...")
+    print(f"[*] Starting V2 (AMD MI300X) Sequence-Level KD Loop (15 Multi-Domain Pairs, {NUM_EPOCHS} Epochs)...")
     student.train()
-    for epoch in range(3):
+    for epoch in range(NUM_EPOCHS):
         epoch_loss = 0.0
         for step, batch in enumerate(dataloader):
             s_ids = batch["s_input_ids"].to(device)
