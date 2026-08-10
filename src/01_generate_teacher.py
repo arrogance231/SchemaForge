@@ -15,7 +15,9 @@ batched HuggingFace ``AutoModelForCausalLM.generate`` fallback), extract clean
 JSON with the balanced-brace scanner, then run
 ``schemaforge.validation.gate.validate_teacher_output``. Accepted outputs are
 appended to the admitted training set; rejected ones land in a separate
-rejections file for inspection.
+rejections file for inspection. Source-support checking runs with
+``fuzzy_support=True``, deliberately crediting typo/OCR-denoising near-matches
+instead of literal substring/ontology matches only.
 
 Two code paths: batched vLLM sampling when a working vLLM build is importable,
 otherwise a batched HuggingFace ``AutoModelForCausalLM.generate`` fallback.
@@ -228,7 +230,7 @@ def main():
     for record, prompt, raw_text in zip(train_records, prompts, raw_outputs):
         clean_json_text = extract_json_str(raw_text)
         result = gate.validate_teacher_output(
-            record["schema"], record["source_text"], clean_json_text
+            record["schema"], record["source_text"], clean_json_text, fuzzy_support=True
         )
         gate_results.append(result)
         if result.accepted:

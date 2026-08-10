@@ -3,10 +3,15 @@
 Runs the four mandatory checks -- JSON parse, pydantic schema validation,
 source-support, and no-over-assertion -- in order, short-circuiting at the
 first rejection and reporting a human-readable reason for it.
+
+Step 3 optionally credits typo/OCR-denoising near-matches (off by default via
+``fuzzy_support``): when enabled, a value whose same-word-count source window
+clears ``fuzzy_threshold`` is accepted as supported.
 """
 
 from __future__ import annotations
 
+import difflib
 from dataclasses import dataclass
 
 from pydantic import ValidationError
@@ -29,6 +34,32 @@ def _supported_via_ontology(spec: SchemaSpec, value: str, norm_source: str) -> b
     )
 
 
+def _fuzzy_supported(value: str, norm_source: str, *, threshold: float = 0.85) -> bool:
+    """True when a same-word-count window of norm_source closely (typo-level) matches value.
+
+    Slides a window of exactly `len(_norm(value).split())` words across `norm_source`'s
+    whitespace-split tokens, computing `difflib.SequenceMatcher(None, norm_value, window).ratio()`
+    for each window, and returns True if any window's ratio is >= `threshold`. The word-count
+    constraint (only comparing equal-length spans) plus a high threshold bounds this to
+    typo/OCR-level near-matches, not loose semantic similarity -- deliberately conservative.
+    Returns False immediately if `value` normalizes to an empty string (avoid a degenerate
+    always-true match against any window) or if `norm_source` has fewer words than `value`'s
+    word count.
+    """
+    norm_value = _norm(value)
+    tokens = norm_value.split()
+    if not tokens:
+        return False
+    source_tokens = norm_source.split()
+    if len(source_tokens) < len(tokens):
+        return False
+    for start in range(len(source_tokens) - len(tokens) + 1):
+        window = " ".join(source_tokens[start : start + len(tokens)])
+        if difflib.SequenceMatcher(None, norm_value, window).ratio() >= threshold:
+            return True
+    return False
+
+
 @dataclass(frozen=True)
 class GateResult:
     """Validation-gate outcome: acceptance flag, parsed dict, rejection reasons, unsupported field paths."""
@@ -39,8 +70,21 @@ class GateResult:
     unsupported_fields: list[str]
 
 
-def validate_teacher_output(schema_name: str, source_text: str, raw_teacher_output: str) -> GateResult:
-    """Run the four-step §4.2 gate on a raw teacher output, short-circuiting at the first rejection."""
+def validate_teacher_output(
+    schema_name: str,
+    source_text: str,
+    raw_teacher_output: str,
+    *,
+    fuzzy_support: bool = False,
+    fuzzy_threshold: float = 0.85,
+) -> GateResult:
+    """Run the four-step §4.2 gate on a raw teacher output, short-circuiting at the first rejection.
+
+    With ``fuzzy_support=True``, step 3 additionally credits typo/OCR-denoising near-matches
+    (same-word-count window of the source scoring >= ``fuzzy_threshold``); it defaults to off,
+    keeping step 3 strict literal/ontology matching only. This exists to avoid false rejections
+    when the teacher corrects single-character corruption the corpus introduces, not to loosen
+    matching into general fuzzy similarity."""
     parsed = parse_json(raw_teacher_output)
     if parsed is None:
         return GateResult(
@@ -72,7 +116,14 @@ def validate_teacher_output(schema_name: str, source_text: str, raw_teacher_outp
             if not item:
                 continue
             norm_value = _norm(item)
-            if norm_value in norm_source or _supported_via_ontology(spec, item, norm_source):
+            if (
+                norm_value in norm_source
+                or _supported_via_ontology(spec, item, norm_source)
+                or (
+                    fuzzy_support
+                    and _fuzzy_supported(item, norm_source, threshold=fuzzy_threshold)
+                )
+            ):
                 continue
             unsupported.append(path)
             break

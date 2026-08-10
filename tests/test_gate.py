@@ -5,7 +5,12 @@ import json
 import pytest
 
 import schemaforge  # noqa: F401  (importing the package populates the registry)
-from schemaforge.validation.gate import GateResult, rejection_rate, validate_teacher_output
+from schemaforge.validation.gate import (
+    GateResult,
+    _fuzzy_supported,
+    rejection_rate,
+    validate_teacher_output,
+)
 
 INVOICE_SOURCE = (
     "Invoice INV-2024-001 from ACME Supplies, billing@acme.example, 555-0100. "
@@ -157,3 +162,58 @@ def test_rejection_rate_mixed():
 def test_rejection_rate_empty_raises():
     with pytest.raises(ValueError):
         rejection_rate([])
+
+
+def test_typo_denoised_value_rejected_by_default_accepted_with_fuzzy():
+    source = "Shipped by Acme Crporation on request."
+    typo_fixed = '{"vendor_name": "Acme Corporation"}'
+    assert validate_teacher_output("invoice", source, typo_fixed).accepted is False
+    assert (
+        validate_teacher_output(
+            "invoice", source, typo_fixed, fuzzy_support=True
+        ).accepted
+        is True
+    )
+
+
+def test_genuine_hallucination_rejected_even_with_fuzzy():
+    source = "Invoice from ACME Supplies for the quarterly audit."
+    result = validate_teacher_output(
+        "invoice",
+        source,
+        '{"vendor_name": "Quantum Dynamics"}',
+        fuzzy_support=True,
+    )
+    assert result.accepted is False
+    assert result.reasons[0].startswith("step3_source_support")
+    assert result.unsupported_fields == ["vendor_name"]
+
+
+def test_fuzzy_word_count_mismatch_rejected():
+    source = "From Acme."
+    result = validate_teacher_output(
+        "invoice",
+        source,
+        '{"vendor_name": "Acme Corporation"}',
+        fuzzy_support=True,
+    )
+    assert result.accepted is False
+    assert result.reasons[0].startswith("step3_source_support")
+
+
+def test_fuzzy_supported_near_identical_window_true():
+    assert _fuzzy_supported("Acme Corporation", "shipped by acme crporation inc") is True
+    assert _fuzzy_supported("ACME Supplies", "billing from acme supplies on file") is True
+
+
+def test_fuzzy_supported_common_short_words_false():
+    assert _fuzzy_supported("blue sky over the hills", "the end of the road") is False
+
+
+def test_fuzzy_supported_empty_value_false():
+    assert _fuzzy_supported("   ", "anything here") is False
+    assert _fuzzy_supported("", "anything here") is False
+
+
+def test_fuzzy_supported_source_too_short_false():
+    assert _fuzzy_supported("two words here", "one") is False
