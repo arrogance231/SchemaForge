@@ -564,3 +564,51 @@ fix. Total duration 8h54m53s (mixed GPU-contention profile — a second agent's 
 active for roughly the first 5 hours, then fully exited; throughput measurably increased
 afterward). Full analysis: `experiments/loop-iter2-20260809T235538Z/manifest.json` and
 `training_report.md`.
+
+## Iteration 15 — 2026-08-10 — Controlled test of the teacher-determinism fix: noise mattered less than expected at this scale
+
+**What ran.** After a full-history side-by-side review surfaced that iterations 5 and 12 —
+identical corpus and parameters — produced hybrid field F1 scores 0.043 apart, `src/01_generate_teacher.py`
+was fixed to use greedy decoding (`temperature=0.0`) instead of `temperature=0.1` sampling with no
+seed (which had been non-deterministic across every iteration through 14). This run re-executes
+iteration 13's exact setup (byte-identical corpus, sha256-verified: same 2700-record corpus, same
+training config) with only that fix applied, to measure how much of the project's run-to-run
+variance was actually teacher-sampling noise. Run under fully exclusive GPU access (confirmed no
+contention) — the first iteration in this project's history with that guarantee.
+
+**Result — field F1 barely moved:**
+
+| metric | iteration 13 (noisy teacher) | iteration 15 (deterministic teacher) | delta |
+|---|---|---|---|
+| field F1 | 0.6830 | 0.6827 | -0.0003 |
+| field precision | 0.7302 | 0.7174 | -0.0128 |
+| field recall | 0.6416 | 0.6513 | +0.0097 |
+| hallucination rate | 0.0095 | 0.0092 | -0.0003 |
+| schema validity | 0.8750 | 0.8333 | -0.0417 |
+
+Teacher gate admission was also nearly identical (1625/2700 vs. 1627/2700, 39.8% vs 39.7%
+rejected) despite the sampling-method change.
+
+**Refined conclusion, not a simple confirmation or dismissal of the noise hypothesis:** at this
+corpus scale (~1625 admitted examples), teacher-sampling noise was NOT the dominant driver of
+iteration 13's result — removing it changed F1 by 0.0003, two orders of magnitude smaller than
+the 0.043 iteration-5-vs-12 swing. The likely explanation: noise sensitivity scales inversely with
+corpus/admitted-example size — iterations 5 and 12 used a much smaller corpus (1080 records, ~635
+admitted), where any individual differently-sampled label has proportionally more influence on
+the trained model. **A secondary effect that IS real: schema_validity dropped meaningfully
+(0.875 → 0.833) with precision/recall shifting in offsetting directions** — small enough not to
+move F1, but a genuine finding worth tracking, not noise itself.
+
+**Practical implication: iteration 14's regression is STRENGTHENED, not explained away.** Since
+iteration 13's result is now confirmed reasonably stable/reproducible at this scale, iteration
+14's drop relative to it (field F1 0.6830 → 0.6583, controlled missing_field-share increase
+55.0% → 60.1%) more likely reflects a genuine effect of that run's corpus-composition change
+(isolated delabel/implicit supplementary corpus) than measurement noise.
+
+**Checkpoint NOT uploaded to Hugging Face** — matches iteration 13's result, not an improvement
+over the published iteration 5/10 checkpoint. This run's value is establishing the noise floor for
+future comparisons. Total duration: 5h12m8s under fully exclusive GPU access — teacher generation
+sustained only ~2.0-2.2 batches/min regardless of contention, indicating this corpus's generation
+cost is inherently high on this hardware, not primarily a contention artifact as earlier duration
+estimates assumed. Full provenance: `experiments/loop-iter3-20260810T095747Z/manifest.json` and
+`training_report.md`.

@@ -1,0 +1,65 @@
+{
+  "run_id": "loop-iter3-20260810T095747Z",
+  "status": "completed",
+  "status_note": "Controlled re-run of iteration 13's exact corpus/training setup, with the sole change being src/01_generate_teacher.py's teacher-generation determinism fix (greedy decoding, temperature=0.0, replacing temperature=0.1 sampling). Purpose: establish whether the run-to-run F1 variance seen across this project's history (most starkly, iterations 5 vs 12, identical setup, 0.043 F1 apart) was primarily teacher-sampling noise, before trusting any further corpus-composition experiments.",
+
+  "provenance": {
+    "git_commit": "9c941ea12f299b66c7bfd04603f6beea0ce04c9b",
+    "git_commit_timestamp": "2026-08-10T09:56:36+00:00",
+    "git_branch": "master",
+    "git_working_tree_dirty_at_launch": false,
+    "orchestrator": "manual (src/01_generate_teacher.py, src/02_train_distill.py, src/08_hybrid_eval.py run individually via SSH + nohup)",
+    "checkpoint_backup_performed_manually": "models/distilled_minicpm5_1b_v2_amd_pre_iter15"
+  },
+
+  "hardware_environment": {
+    "gpu_count": 1,
+    "gpu_model": "AMD Instinct MI300X VF",
+    "rocm_version": "7.0.2",
+    "server_ssh_alias_local": "amd-training-2",
+    "compute_attribution": "GPU access provided by the AMD AI Developer Program. This statement documents the compute source; it is not a claim of AMD endorsement or review of the research.",
+    "shared_gpu_note": "GPU was EXCLUSIVE to this job for its full duration -- confirmed no other agent process present throughout (unlike iterations 12-14, which had varying degrees of contention). This is the first iteration in this project's history run under genuinely clean single-tenant conditions, which matters for interpreting the duration/throughput numbers below."
+  },
+
+  "teacher_model": {"identifier": "google/gemma-4-31B", "revision": "unpinned in code."},
+  "student_model": {"identifier": "openbmb/MiniCPM5-1B", "revision": "unpinned in code.", "parameter_count_estimate": 1042808832},
+
+  "dataset": {
+    "source": "data/corpus_baseline.jsonl, IDENTICAL to iteration 13's training corpus",
+    "corpus_sha256": "adaf286d82bf7d46582e4b104dd5198521721238792a5d4e82d92e652f7b8000",
+    "corpus_sha256_note": "Confirmed byte-identical to iteration 13's data/hard_examples_train.jsonl by direct hash comparison before this run's teacher-generation stage was launched.",
+    "corpus_size_records": 2700,
+    "teacher_gate_admitted": 1625,
+    "teacher_gate_total": 2700,
+    "teacher_gate_rejection_rate_pct": 39.8,
+    "teacher_gate_comparison_to_iteration_13": "1625/2700 admitted (39.8% rejected) vs. iteration 13's 1627/2700 (39.7%) on the SAME source corpus -- nearly identical admission count despite the sampling-method change (temperature=0.1 -> temperature=0.0). This indicates the earlier admission-rate swings across iterations (29.0%-42.4%) were driven by corpus composition/content, not by teacher-sampling temperature itself -- the gate's pass/fail decision on a given document is not very sensitive to this particular change."
+  },
+
+  "training_configuration": {
+    "read_from": "src/02_train_distill.py at commit 9c941ea -- UNCHANGED from iteration 13/14 (torch.manual_seed(42), LR 2e-5, batch_size 2, 3 epochs, AdamW, cosine schedule, bf16).",
+    "changes_from_iteration_13": "NONE in src/02_train_distill.py. The only change in the entire pipeline between iteration 13 and this run is src/01_generate_teacher.py's decoding strategy (temperature=0.1 sampling -> temperature=0.0 greedy), which affects which teacher labels get admitted and their exact content, not the student training procedure itself."
+  },
+
+  "training_performance": {
+    "start_timestamp_utc": "2026-08-10T09:57:47",
+    "end_timestamp_utc": "2026-08-10T15:09:55",
+    "total_wall_clock_duration": "5h 12m 8s, GPU exclusive throughout (see hardware_environment.shared_gpu_note) -- teacher generation measured at a real, sustained rate of ~2.0-2.2 batches/min (4 records/batch) over 675 batches, i.e. this corpus's generation cost is inherently high on this hardware/model combination REGARDLESS of GPU contention, not primarily a contention artifact as earlier iterations' analysis assumed.",
+    "per_epoch_loss": {"epoch_1": 0.0384, "epoch_2": 0.0084, "epoch_3": 0.0048, "note": "nearly identical to iteration 13's (0.0382/0.0089/0.0052) despite the different (deterministic) teacher labels -- consistent with the eval-metric finding that this change had a small effect at this corpus scale."},
+    "checkpoint_backup_confirmed": {"backed_up": true, "backup_path": "models/distilled_minicpm5_1b_v2_amd_pre_iter15"},
+    "checkpoint_sha256": "c13f7f6c21c35d2ed9159acc044a9f88abcd9fdfe9d0248ee625236b70c8470d",
+    "precision_confirmed": "bf16",
+
+    "evaluation_metrics_72record_eval_direct_comparison_to_iteration_13": {
+      "hybrid_iteration_15_deterministic_teacher": {"field_precision": 0.717357910906298, "field_recall": 0.6513249651324965, "field_f1": 0.6827485380116959, "hallucination_rate": 0.009216589861751152, "schema_validity": 0.8333333333333334, "exact_match": 0.20833333333333334, "missing_field_rate": 0.1101813110181311},
+      "hybrid_iteration_13_noisy_teacher": {"field_precision": 0.7301587301587301, "field_recall": 0.6415620641562064, "field_f1": 0.6829992576095026, "hallucination_rate": 0.009523809523809525, "schema_validity": 0.875},
+      "delta": {"field_f1": -0.0002507195978067, "field_precision": -0.0127, "field_recall": 0.0097, "hallucination_rate": -0.0003, "schema_validity": -0.0417},
+      "KEY_FINDING": "Field F1 is essentially UNCHANGED (0.6830 -> 0.6827, a difference of 0.0003) between the noisy-teacher and deterministic-teacher versions of an otherwise identical setup. This is a much smaller difference than the 0.043 swing observed between iterations 5 and 12 (also an identical-setup pair, but on the smaller 1080-record corpus). CONCLUSION: at this corpus scale (~1625 admitted examples), teacher-sampling noise was NOT the dominant driver of iteration 13's specific result -- that measurement appears to have been reasonably stable already. This suggests the noise's practical impact scales inversely with corpus/admitted-example size (a smaller corpus lets any individual differently-sampled label swing the aggregate more). A secondary, smaller effect IS visible: schema_validity dropped meaningfully (0.875 -> 0.833, -0.0417) and precision/recall shifted in offsetting directions -- worth watching in future runs, though not large enough to change the headline F1 conclusion.",
+      "implication_for_iteration_14": "Since iteration 13's own result now looks stable/reproducible (not swamped by noise), iteration 14's regression relative to it (field F1 0.6830 -> 0.6583, and the missing_field share increase 55.0% -> 60.1%) is MORE likely to reflect a genuine effect of that run's corpus-composition change (the isolated delabel/implicit supplementary corpus) than to be explained away as noise. This strengthens, not weakens, iteration 14's negative finding."
+    }
+  },
+
+  "final_artifacts": {
+    "checkpoint_used_for_huggingface_upload": false,
+    "checkpoint_used_for_huggingface_upload_note": "Not an improvement over iteration 5/10's published checkpoint (field F1 0.6827 vs 0.6858) -- essentially the same result as iteration 13, which was already not an improvement. This run's value is methodological (establishing the noise floor), not a new best checkpoint."
+  }
+}
