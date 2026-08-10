@@ -19,6 +19,10 @@ rejections file for inspection.
 
 Two code paths: batched vLLM sampling when a working vLLM build is importable,
 otherwise a batched HuggingFace ``AutoModelForCausalLM.generate`` fallback.
+Generation is greedy (``temperature=0.0``, no sampling) in both paths: this is a
+labeling teacher whose output must be reproducible across runs -- nonzero
+temperature would reintroduce run-to-run variance in the ground truth this
+project's comparisons depend on.
 Teacher generation runs on an AMD Instinct MI300X server via SSH (ROCm); no
 ROCm vLLM build is present there, so the HF `generate` fallback is what executes.
 """
@@ -105,7 +109,7 @@ def extract_json_str(text: str) -> str:
     return text[start:].strip()
 
 
-def generate_with_hf(model_name, prompts, max_new_tokens=512, temperature=0.1):
+def generate_with_hf(model_name, prompts, max_new_tokens=512, temperature=0.0):
     import torch
     from transformers import AutoTokenizer, AutoModelForCausalLM
 
@@ -196,7 +200,7 @@ def main():
         )
 
         sampling_params = SamplingParams(
-            temperature=0.1,
+            temperature=0.0,
             max_tokens=512
         )
 
@@ -215,7 +219,7 @@ def main():
             MODEL_NAME,
             prompts,
             max_new_tokens=512,
-            temperature=0.1
+            temperature=0.0
         )
 
     records = []
