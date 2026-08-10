@@ -1,0 +1,46 @@
+{
+  "run_id": "v3-iter1-20260810T155838Z",
+  "status": "completed",
+  "status_note": "First V3 iteration. Pure corpus scale-up test (n=75->100/schema/severity) under the now-deterministic V2 pipeline, no other changes. Negative result -- see logs/V3_TRAINING_FAILURES.md V3 Iteration 1 for full analysis and the mechanistic hypothesis (total training steps, not corpus size per se) this result points to.",
+
+  "provenance": {
+    "git_commit": "9c941ea12f299b66c7bfd04603f6beea0ce04c9b",
+    "git_commit_timestamp": "2026-08-10T09:56:36+00:00",
+    "note": "Launched before the fuzzy-support gate fix (commit 542a3cc) was ready -- this run used the strict (non-fuzzy) gate, same as iteration 15.",
+    "orchestrator": "manual (src/01_generate_teacher.py, src/02_train_distill.py, src/08_hybrid_eval.py, src/07_failure_eval.py via SSH + nohup)",
+    "checkpoint_backup_performed_manually": "models/distilled_minicpm5_1b_v2_amd_V2_FINAL_iter15 (V2's final checkpoint, iteration 15, preserved/labeled before this V3 run started)"
+  },
+
+  "dataset": {
+    "source": "data/corpus_v3_iter1.jsonl",
+    "generation_command": ["python3", "-m", "schemaforge.hardexamples.generate", "--split", "train", "--n", "100", "--severities", "0.0,0.3,0.6,0.9", "--seed", "42", "--out", "data/corpus_v3_iter1.jsonl"],
+    "corpus_size_records": 3600,
+    "teacher_gate_admitted": 2157,
+    "teacher_gate_total": 3600,
+    "teacher_gate_rejection_rate_pct": 40.1,
+    "fuzzy_support_used": false
+  },
+
+  "training_configuration": {
+    "changes_from_iteration_15": "NONE except the training corpus -- same seed (42), LR (2e-5), 3 epochs, batch_size 2, AdamW, cosine schedule, bf16.",
+    "total_training_steps": 3237,
+    "total_training_steps_comparison": "3237 (1079 steps/epoch x 3) vs. iteration 15's 2439 (813 x 3) -- 33% more gradient updates from the larger admitted-example count, same epoch count."
+  },
+
+  "training_performance": {
+    "per_epoch_loss": {"epoch_1": 0.0351, "epoch_2": 0.0091, "epoch_3": 0.0052, "note": "identical final loss (0.0052) to iteration 15 despite 33% more training steps and more data -- both runs converge to the same near-zero-loss plateau."},
+    "checkpoint_sha256": "e14219a917d506a18fbb71a8cf258c79a62bd049c61e33c0d2419bb195b6571e",
+    "precision_confirmed": "bf16",
+    "evaluation_metrics_72record_eval": {
+      "hybrid": {"field_precision": 0.7228714524207012, "field_recall": 0.603905160390516, "field_f1": 0.6580547112462006, "hallucination_rate": 0.011686143572621035, "schema_validity": 0.8472222222222222, "exact_match": 0.25, "missing_field_rate": 0.18131101813110181},
+      "failure_by_category": {"missing_field": 211, "unclassified_mismatch": 86, "hallucinated_field": 35, "incorrect_nesting": 15, "ambiguous_input": 7, "wrong_entity_boundary": 2, "schema_violation": 3, "wrong_inferred_value": 0, "incorrect_normalization": 0},
+      "missing_field_share_of_failures": 0.5877437325905293,
+      "comparison_to_iteration_15": "field F1 DROPPED (0.6827 -> 0.6581, -0.0246) despite MORE admitted training examples (1625 -> 2157) under an otherwise identical, now-deterministic pipeline. This is the cleanest evidence yet that scaling corpus size past ~1600 admitted examples does not help and may actively hurt under this project's fixed 3-epoch training schedule -- see logs/V3_TRAINING_FAILURES.md for the total-training-steps hypothesis this points to."
+    }
+  },
+
+  "final_artifacts": {
+    "checkpoint_used_for_huggingface_upload": false,
+    "checkpoint_used_for_huggingface_upload_note": "Worse than the published V2 (iteration 15) checkpoint on every headline metric. Not a candidate."
+  }
+}
