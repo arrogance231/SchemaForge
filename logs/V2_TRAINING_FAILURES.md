@@ -513,3 +513,54 @@ the already-published iteration-5 checkpoint. Total duration: 6h 2m 40s (teacher
 the 2700-record corpus dominated; retrain+eval added only minutes, consistent with iteration 12).
 Full manifest and analysis: `experiments/loop-iter1-20260809T100347Z/manifest.json` and
 `training_report.md`.
+
+## Iteration 14 — 2026-08-10 — Targeted missing_field corpus: negative result, confirmed by controlled comparison
+
+**What ran.** Per a proposed follow-up to iteration 13's inconclusive "tie within noise": a
+supplementary training corpus (`data/corpus_targeted_missing.jsonl`, 1080 records) using ONLY the
+`delabel`/`implicit` corruption operators — no other corruptions stacked on top, unlike every
+other corpus generated in this project, which stacks all ten operators by default — concatenated
+with the same baseline corpus as iteration 13 (`corpus_baseline.jsonl`, 2700 records, identical
+params) into a 3780-record combined corpus. Also generated a 4x larger eval set
+(`data/eval_holdout_v2.jsonl`, 288 records vs. the 72-record set used since iteration 4) so future
+comparisons stop being decided by noise. Training config (seed, LR, epochs) unchanged from
+iteration 13 — only the training data changed. Orchestrated manually (not via `src/09_loop.py`,
+which can't concatenate two corpora). Full provenance: `experiments/loop-iter2-20260809T235538Z/`.
+
+**Positive finding, independent of the checkpoint result:** teacher gate admitted 2685/3780
+(**29.0% rejected**), the largest single-iteration improvement in this project (vs. 39.7% in
+iteration 13, 41.1% in iteration 5) — not isolated to one cause (ontology fills carried over
+unchanged, or the isolated-operator corpus structure, or both).
+
+**Negative result, confirmed by a genuinely controlled comparison:** run against the SAME
+72-record eval set used since iteration 4:
+
+| metric | iteration 13 | iteration 14 | delta |
+|---|---|---|---|
+| field F1 | 0.6830 | 0.6583 | **-0.0247** |
+| field recall | 0.6416 | 0.5844 | **-0.0572** |
+| schema validity | 0.8750 | 0.8056 | **-0.0694** |
+| exact match | 0.2222 | 0.2917 | +0.0695 |
+| `missing_field` share of failures | 55.0% (202/367) | **60.1% (221/368)** | **worse, not better** |
+| `schema_violation` count | 1 | 4 | worse |
+
+**The specific hypothesis this run tested — that isolated delabel/implicit training examples
+would reduce omission failures — is not supported by the data, on a comparison controlled enough
+to trust (same eval set, same 72 records, only the training corpus differs).** Field F1, recall,
+and schema validity all dropped versus iteration 13; the targeted failure category's share of all
+failures increased rather than decreased.
+
+**Plausible explanation, not confirmed:** the supplementary corpus trained the model on
+delabel/implicit corruptions in isolation, while the eval set (and most of the baseline training
+corpus) presents them compounded with OCR noise, typos, and reordering simultaneously — isolated-
+operator practice may not transfer to the compounded case the model is actually evaluated on.
+Worth testing directly in a future iteration: stack the targeted operators on top of the others
+instead of isolating them.
+
+**Checkpoint NOT uploaded to Hugging Face** — scores below both the currently-published
+iteration-5 checkpoint and iteration 13's. `models/distilled_minicpm5_1b_v2_amd_pre_iter14`
+(iteration 13's checkpoint) preserved on the training server per the working checkpoint-backup
+fix. Total duration 8h54m53s (mixed GPU-contention profile — a second agent's session was heavily
+active for roughly the first 5 hours, then fully exited; throughput measurably increased
+afterward). Full analysis: `experiments/loop-iter2-20260809T235538Z/manifest.json` and
+`training_report.md`.

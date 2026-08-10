@@ -1,0 +1,100 @@
+{
+  "run_id": "loop-iter2-20260809T235538Z",
+  "status": "completed",
+  "status_note": "Manually orchestrated (not via src/09_loop.py, which does not support concatenating two separately-generated corpora). Follows the targeted retraining plan proposed in chat after iteration 13: attack missing_field (the dominant failure category) with a supplementary corpus using only the delabel/implicit operators, and enlarge the eval set so future comparisons stop being decided by noise.",
+
+  "provenance": {
+    "git_commit": "9c115cda14e2ff0430a9df1924ff1339dfc34dbc",
+    "git_commit_timestamp": "2026-08-09T23:54:48+00:00",
+    "git_branch": "master",
+    "git_working_tree_dirty_at_launch": false,
+    "orchestrator": "manual (src/01_generate_teacher.py, src/02_train_distill.py, src/08_hybrid_eval.py x2, src/07_failure_eval.py run individually via SSH + nohup, same pattern iterations 3-12 used before src/09_loop.py existed)",
+    "checkpoint_backup_performed_manually": "models/distilled_minicpm5_1b_v2_amd_pre_iter14 (renamed before launching src/02_train_distill.py, mirroring src/09_loop.py's Tier-0 fix, done by hand since the loop driver wasn't used this run)"
+  },
+
+  "hardware_environment": {
+    "gpu_count": 1,
+    "gpu_model": "AMD Instinct MI300X VF",
+    "rocm_version": "7.0.2",
+    "server_ssh_alias_local": "amd-training-2",
+    "python_version": "3.12.3",
+    "torch_version": "2.11.0.dev20260206+rocm7.0",
+    "transformers_version": "5.14.1",
+    "compute_attribution": "GPU access provided by the AMD AI Developer Program. This statement documents the compute source; it is not a claim of AMD endorsement or review of the research.",
+    "shared_gpu_note": "GPU was shared with a second, independently-run agent session for roughly the first ~5 hours of the teacher-generation stage (heavy contention observed: confirmed via CPU-time-delta sampling that the job was actively computing throughout, just slowly -- not stalled). That session's process fully exited partway through this run; teacher generation sped up substantially afterward (partially confirmed: at least 205 of the later batches completed within an 8m38s window once the GPU was exclusive, vs. an average of ~1.4 batches/min during the contended period). Total wall-clock duration below reflects this mixed contention profile, not a clean throughput benchmark either way."
+  },
+
+  "teacher_model": {"identifier": "google/gemma-4-31B", "revision": "unpinned in code; see prior manifests for last-observed cache hash."},
+  "student_model": {
+    "identifier": "openbmb/MiniCPM5-1B",
+    "revision": "unpinned in code; see loop-iter0 manifest for last-observed cache hash.",
+    "parameter_count_estimate": 1042808832
+  },
+
+  "dataset": {
+    "source": "schemaforge.hardexamples.generate, TWO corpora concatenated",
+    "corpus_a_baseline": {
+      "command": ["python3", "-m", "schemaforge.hardexamples.generate", "--split", "train", "--n", "75", "--severities", "0.0,0.3,0.6,0.9", "--seed", "42", "--out", "data/corpus_baseline.jsonl"],
+      "records": 2700,
+      "note": "identical generation parameters to iteration 13's corpus, for partial continuity."
+    },
+    "corpus_b_targeted": {
+      "command": ["python3", "-m", "schemaforge.hardexamples.generate", "--split", "train", "--n", "40", "--severities", "0.3,0.6,0.9", "--operators", "delabel,implicit", "--seed", "99", "--out", "data/corpus_targeted_missing.jsonl"],
+      "records": 1080,
+      "rationale": "delabel (removes the field's text label) and implicit (replaces a literal with an inference) are the two corruption operators most directly analogous to the missing_field failure category (the dominant failure category in every iteration since it was first measured, iteration 8). Isolating them (no other operators stacked on top, unlike the baseline corpus which stacks all ten) was intended to give the model cleaner, more concentrated exposure to exactly this failure mode."
+    },
+    "combined_corpus_size_records": 3780,
+    "combined_corpus_file": "data/hard_examples_train.jsonl (corpus_a + corpus_b concatenated)",
+    "teacher_gate_admitted": 2685,
+    "teacher_gate_total": 3780,
+    "teacher_gate_rejection_rate_pct": 29.0,
+    "teacher_gate_rejection_rate_comparison": "29.0% vs. iteration 13's 39.7% and iteration 5's 41.1% -- the largest single-iteration improvement in gate admission rate observed in this project. NOT isolated to a single cause: could be the ontology fills (carried over unchanged from iteration 13), the different corpus composition (the isolated delabel/implicit examples may be less likely to trigger source-support false-rejections than the ten-operator-stacked baseline examples), or some combination. Worth a dedicated follow-up to attribute precisely.",
+    "eval_corpus_new": {
+      "file": "data/eval_holdout_v2.jsonl",
+      "command": ["python3", "-m", "schemaforge.hardexamples.generate", "--split", "any", "--n", "12", "--severities", "0.0,0.5", "--seed", "7", "--out", "data/eval_holdout_v2.jsonl"],
+      "records": 288,
+      "note": "4x the record count of the eval set used since iteration 4 (same generation recipe, just n=12 instead of n=3), built specifically to stop future comparisons from being decided by noise."
+    },
+    "eval_corpus_old": {
+      "file": "data/eval_holdout.jsonl",
+      "records": 72,
+      "note": "ALSO run this iteration's checkpoint against this set, specifically to get one number directly comparable to iterations 4-13's history alongside the new eval set's number."
+    }
+  },
+
+  "training_configuration": {
+    "read_from": "src/02_train_distill.py at commit 9c115cd (unchanged from iteration 13's Tier-0-fixed version: torch.manual_seed(42), LR 2e-5, batch_size 2, 3 epochs, AdamW, cosine schedule, bf16).",
+    "changes_from_iteration_13": "none in training configuration -- only the training DATA changed (larger combined corpus, more admitted examples: 2685 vs 634)."
+  },
+
+  "training_performance": {
+    "start_timestamp_utc": "2026-08-09T23:55:38",
+    "start_timestamp_note": "birth time of logs/01_generate_teacher_iter14.log on amd-training-2.",
+    "end_timestamp_utc": "2026-08-10T08:50:31",
+    "end_timestamp_note": "timestamp of the last evaluation report written (loop_iter14_hybrid_oldeval.json).",
+    "total_wall_clock_duration": "8h 54m 53s -- dominated by teacher generation over the larger 3780-record corpus, under a mixed contention profile (see hardware_environment.shared_gpu_note). Not comparable to iteration 13's 6h2m as a clean throughput measurement given the contention difference, though the corpus is also 1.4x larger.",
+    "per_epoch_loss": {"epoch_1": 0.0270, "epoch_2": 0.0069, "epoch_3": 0.0043, "note": "lower at every epoch than iteration 13's (0.0382/0.0089/0.0052) on ~4x more admitted training examples -- consistent with more data, not obviously indicative of the model overfitting harder."},
+    "checkpoint_backup_confirmed": {"backed_up": true, "backup_path": "models/distilled_minicpm5_1b_v2_amd_pre_iter14"},
+    "checkpoint_sha256": "646e938c350b54ba2434353d89a24d538f96bc897bb6e24efb006ffdbecd56cd",
+    "precision_confirmed": "bf16",
+
+    "evaluation_metrics_new_eval_288records": {
+      "hybrid": {"field_precision": 0.7376171352074966, "field_recall": 0.5666780939321221, "field_f1": 0.6409461031407523, "hallucination_rate": 0.006247211066488175, "schema_validity": 0.8368055555555556, "exact_match": 0.2777777777777778},
+      "failure_by_category": {"missing_field": 854, "unclassified_mismatch": 333, "hallucinated_field": 111, "incorrect_nesting": 66, "ambiguous_input": 30, "wrong_entity_boundary": 26, "schema_violation": 12, "wrong_inferred_value": 2, "incorrect_normalization": 0},
+      "missing_field_share_of_failures": 0.5955,
+      "missing_field_share_comparison": "59.6% of all failure instances on this 288-record eval set. See evaluation_metrics_old_eval_72records_comparable_to_history.failure_by_category below for the CONTROLLED (same-eval-set) comparison to iteration 13, which confirms this finding more solidly."
+    },
+    "evaluation_metrics_old_eval_72records_comparable_to_history": {
+      "hybrid": {"field_precision": 0.7535971223021583, "field_recall": 0.5843793584379359, "field_f1": 0.6582875098193244, "hallucination_rate": 0.01618705035971223, "schema_validity": 0.8055555555555556, "exact_match": 0.2916666666666667, "missing_field_rate": 0.22454672245467225},
+      "comparison_to_prior_best": "field F1 0.6583 vs. iteration 5/10's 0.6858 (still the all-time best) and iteration 13's 0.6830 -- LOWER on this directly-comparable eval set, despite the much larger/better-admitted training corpus. schema_validity (0.8056) is also lower than iteration 13's (0.8750). Two metrics DID improve: exact_match (0.2917 vs iteration 13's 0.2222) and hallucination_rate is very low (0.0162, though not as low as iteration 13's 0.0095).",
+      "overall_read": "Mixed-to-negative result on the metric this project treats as the headline number (field F1). Reported honestly rather than emphasizing the positive gate-admission-rate finding alone.",
+      "failure_by_category": {"missing_field": 221, "unclassified_mismatch": 78, "hallucinated_field": 35, "incorrect_nesting": 17, "ambiguous_input": 7, "schema_violation": 4, "wrong_entity_boundary": 3, "wrong_inferred_value": 3, "incorrect_normalization": 0},
+      "missing_field_share_controlled_comparison": "60.1% (221/368) on THIS run vs. iteration 13's 55.0% (202/367) -- SAME 72-record eval set both times, a genuinely controlled comparison. CONFIRMS the negative finding: the targeted delabel/implicit supplementary corpus did not reduce missing_field's dominance, and its relative share increased. schema_violation also worsened on this same controlled comparison (1 -> 4 instances), consistent with the schema_validity metric drop (0.8750 -> 0.8056)."
+    }
+  },
+
+  "final_artifacts": {
+    "checkpoint_used_for_huggingface_upload": false,
+    "checkpoint_used_for_huggingface_upload_note": "NOT recommended. On the eval set directly comparable to prior iterations, this checkpoint scores below both the currently-published iteration-5 checkpoint (0.6858) and iteration 13's un-uploaded checkpoint (0.6830). The much-improved teacher-gate admission rate (29.0% vs 39.7% rejected) is a genuine positive finding about the PIPELINE, but did not translate into a better STUDENT checkpoint this run."
+  }
+}
