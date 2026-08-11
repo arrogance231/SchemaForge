@@ -1,0 +1,63 @@
+{
+  "run_id": "v3-iter3-20260811T0240Z",
+  "status": "completed",
+  "status_note": "Third V3 iteration -- completes the epoch sweep (1/2/3). Corpus held at n=100 (same 2691-record fuzzy-gate corpus as iter 2, no new generation) but epochs cut 2->1 (NUM_EPOCHS=1, 1346 total steps) to test the low end of the total-training-steps axis. Negative result vs iter 2 but informative: field F1 0.6597 (72-rec) vs iter 2's 0.6745 and iter 1's 0.6581 -- one epoch underfits and missing_field's share of failures rose back to 57.0% (196/344). The sweep brackets the optimum: 1ep 0.6597 / 2ep 0.6745 / 3ep 0.6581 -- 2 epochs is the confirmed optimum under the fuzzy-gate corpus. NUM_EPOCHS restored to 2 (repo and server back in the optimal state). See logs/V3_TRAINING_FAILURES.md V3 Iteration 3.",
+
+  "provenance": {
+    "git_commit": "a848a7ce5d54879bcec01ad827fc1d797bb710ea",
+    "git_commit_timestamp": "2026-08-11T02:32:28+00:00",
+    "note": "No source changes committed for this iteration: NUM_EPOCHS=1 was applied as a temporary server-side edit for the run and restored to 2 immediately after (2 epochs confirmed optimal by the sweep). Training via src/02_train_distill.py; evals via src/08_hybrid_eval.py (72-rec), src/07_failure_eval.py, src/08_hybrid_eval.py (288-rec) over SSH + nohup.",
+    "orchestrator": "manual (SSH + nohup: src/02_train_distill.py, src/08_hybrid_eval.py 72-rec, src/07_failure_eval.py, src/08_hybrid_eval.py 288-rec)",
+    "checkpoint_backup_performed_manually": "models/distilled_minicpm5_1b_v2_amd_pre_v3iter3 (verified present on amd-training-2 before this run started)"
+  },
+
+  "dataset": {
+    "source": "data/teacher_dataset_v3iter2.json -- same 2691-record fuzzy-gate corpus as iter 2, built from data/corpus_v3_iter1.jsonl (3600 records) with 534/1443 step-3 rejections recovered by src/09_recover_fuzzy.py (fuzzy_support=True). No new generation for iter 3.",
+    "generation_command": ["python3", "-m", "schemaforge.hardexamples.generate", "--split", "train", "--n", "100", "--severities", "0.0,0.3,0.6,0.9", "--seed", "42", "--out", "data/corpus_v3_iter1.jsonl"],
+    "corpus_size_records": 3600,
+    "teacher_gate_admitted": 2691,
+    "teacher_gate_total": 3600,
+    "teacher_gate_rejection_rate_pct": 25.2,
+    "fuzzy_support_used": true,
+    "recovery": {
+      "script": "src/09_recover_fuzzy.py",
+      "rejections_source": "data/teacher_dataset_rejections_v3iter1_bak.json (1443 records, backup of iter-1 rejections made 2026-08-11T02:00Z)",
+      "records_recovered": 534,
+      "recovery_rate_pct": 37.0,
+      "note": "Reused from iter 2 unchanged: 534/1443 iter-1 step-3 rejections re-admitted under fuzzy_support=True (threshold 0.85); 2691 = 2157 (iter-1 admitted) + 534."
+    }
+  },
+
+  "training_configuration": {
+    "changes_from_iteration_15": "epochs 2 -> 1 (NUM_EPOCHS=1, temporary server-side edit for this run only) under the iter-2 fuzzy-gate corpus (2691 admitted); same seed (42), LR (2e-5), batch_size 2, AdamW, cosine schedule, bf16. Restored to NUM_EPOCHS=2 after the run.",
+    "total_training_steps": 1346,
+    "total_training_steps_comparison": "1346 (single epoch of 1346 steps) vs. iter 2's 2692 (2 x 1346) and iter 1's 3237 (3 x 1079). Lowest step count tested; completes the 1/2/3-epoch sweep under the fuzzy-gate corpus."
+  },
+
+  "training_performance": {
+    "per_epoch_loss": {"epoch_1": 0.0489, "note": "epoch-1 avg loss 0.0489 (mean over 1346 logged steps, from logs/02_train_distill_v3iter3.log) -- essentially identical to iter 2's epoch-1 0.0486, as expected since the first epoch is recipe-identical."},
+    "checkpoint_sha256": "b8d078dfdffeafc4aed3e0433dd1f582d81e113a618536661096791cbf4ef6e8",
+    "checkpoint_sha256_note": "sha256 of models/distilled_minicpm5_1b_v2_amd/model.safetensors computed on amd-training-2 after training completed",
+    "precision_confirmed": "bf16",
+    "evaluation_metrics_72record_eval": {
+      "hybrid": {"exact_match": 0.19444444444444445, "schema_validity": 0.9583333333333334, "field_precision": 0.709470304975923, "field_recall": 0.6164574616457462, "field_f1": 0.6597014925373135, "hallucination_rate": 0.01765650080256822, "missing_field_rate": 0.15760111576011157, "n_records": 72.0},
+      "model_only": {"exact_match": 0.0, "schema_validity": 0.9166666666666666, "field_precision": 0.48328267477203646, "field_recall": 0.4435146443514644, "field_f1": 0.46254545454545454, "hallucination_rate": 0.04559270516717325, "missing_field_rate": 0.3417015341701534, "n_records": 72.0},
+      "rules_only": {"exact_match": 0.0, "schema_validity": 1.0, "field_precision": 0.9185185185185185, "field_recall": 0.17294281729428174, "field_f1": 0.29107981220657275, "hallucination_rate": 0.0, "missing_field_rate": 0.8117154811715481, "n_records": 72.0},
+      "failure_by_category": {"missing_field": 196, "incorrect_normalization": 0, "wrong_entity_boundary": 7, "wrong_inferred_value": 3, "hallucinated_field": 32, "schema_violation": 0, "incorrect_nesting": 14, "ambiguous_input": 7, "unclassified_mismatch": 85},
+      "total_failures": 344,
+      "missing_field_share_of_failures": 0.5697674418604651,
+      "comparison_to_iteration_15": "field F1 0.6581 (it1, 3ep) -> 0.6745 (it2, 2ep) -> 0.6597 (this run, 1ep): one epoch under the fuzzy-gate corpus underfits -- it ties iter 1's 3-epoch result and loses to iter 2 by -0.0148. Sweep optimum confirmed at 2 epochs. missing_field share rose back to 57.0% (196/344) from iter 2's 52.3% (196/375) and total failure count fell to 344; schema_validity improved to 0.9583 (vs iter 2's 0.8889) but field F1 regressed."
+    }
+  },
+
+  "evaluation_metrics_288record_eval": {
+    "hybrid": {"exact_match": 0.1875, "schema_validity": 0.9409722222222222, "field_precision": 0.7072486984381258, "field_recall": 0.6054165238258484, "field_f1": 0.6523827114887328, "hallucination_rate": 0.0368442130556668, "missing_field_rate": 0.1576962632841961, "n_records": 288.0},
+    "model_only": {"exact_match": 0.0, "schema_validity": 0.9236111111111112, "field_precision": 0.46436285097192226, "field_recall": 0.44223517312307165, "field_f1": 0.45302897278314314, "hallucination_rate": 0.09791216702663787, "missing_field_rate": 0.33356187864244086, "n_records": 288.0},
+    "note": "Larger eval set corroborates the 72-record result: field F1 0.6524, schema validity 0.9410, missing_field_rate 0.1577 -- below iter 2's 288-rec F1 0.6742."
+  },
+
+  "final_artifacts": {
+    "checkpoint_used_for_huggingface_upload": false,
+    "checkpoint_used_for_huggingface_upload_note": "field F1 0.6597 (72-rec) is below iter 2's 0.6745 and the published V2/iter-15 checkpoint (0.6827). One-epoch model underfits; 2 epochs remains the confirmed optimum. Not a candidate for HF upload; missing_field remains the dominant failure class."
+  }
+}

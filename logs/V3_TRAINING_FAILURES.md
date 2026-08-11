@@ -77,3 +77,25 @@ spot-checking) for this run, since it's independently justified and ready.
 **Status.** Better than iter 1, still -0.0082 below the published V2/iter-15 checkpoint (0.6827) on the 72-record eval → not an HF-upload candidate (`checkpoint_used_for_huggingface_upload: false`). Full provenance in `experiments/v3-iter2-20260811T0228Z/manifest.json`. Iteration 15 remains the best published checkpoint.
 
 **Planned next steps:** once teacher generation completes → retrain student at 2 epochs (3→2, per iter 1 hypothesis) → hybrid eval on the 288-record set → then V3 iteration 3.
+
+## V3 Iteration 3 — 2026-08-11 — Epochs 2→1 under the fuzzy-gate corpus (n=100): negative result, completes the epoch sweep
+
+**What ran.** Same 2691-record fuzzy-gate corpus as iter 2 (`data/teacher_dataset_v3iter2.json`, admitted 2691/3600), same seed/LR/batch (42, 2e-5, 2), but epochs cut 2→1 (`NUM_EPOCHS=1`, temporary server-side edit for the run, not committed) → 1346 steps total, single epoch. Epoch-1 avg loss 0.0489 (vs iter 2's epoch-1 0.0486 — expected, the first epoch is recipe-identical). Checkpoint sha256 `b8d078df…4ef6e8`; pre-run backup `models/distilled_minicpm5_1b_v2_amd_pre_v3iter3` verified intact.
+
+**Result — negative vs iter 2, completes the sweep:**
+
+| metric (72-rec eval) | V3 it1 (3ep) | V3 it2 (2ep) | V3 it3 (1ep) | it3 vs it2 |
+|---|---|---|---|---|
+| hybrid field F1 | 0.6581 | **0.6745** | 0.6597 | **-0.0148** |
+| field precision | 0.7229 | 0.7110 | 0.7095 | -0.0015 |
+| field recall | 0.6039 | 0.6416 | 0.6165 | -0.0251 |
+| schema validity | 0.8472 | 0.8889 | 0.9583 | +0.0694 |
+| missing_field share of failures | 58.8% (211/359) | **52.3% (196/375)** | 57.0% (196/344) | worse |
+
+**Interpretation.** One epoch underfits: field F1 0.6597 essentially ties iter 1's 3-epoch 0.6581 but loses to iter 2's 2-epoch 0.6745. With 1346 gradient updates the model captures fewer extraction patterns — missing_field's share of failures rises back to 57.0% (196/344) from iter 2's 52.3% (196/375), even though the absolute failure count (344) is lower. Schema validity improved to 0.9583, but at the cost of recall (0.6165). The sweep brackets the optimum: **1ep 0.6597 / 2ep 0.6745 / 3ep 0.6581 — 2 epochs is the confirmed optimum** under the fuzzy-gate corpus.
+
+**Corroboration (288-record eval).** Hybrid field F1 0.6524, schema validity 0.9410, precision 0.7072, recall 0.6054, missing_field_rate 0.1577 — consistent with the 72-record readout; model-only F1 0.4530, rules-only F1 0.2763.
+
+**Status.** Negative result vs iter 2 but informative: it closes the epoch sweep with a clean optimum at 2 epochs. Not an HF-upload candidate (`checkpoint_used_for_huggingface_upload: false`). Full provenance in `experiments/v3-iter3-20260811T0240Z/manifest.json`. `NUM_EPOCHS` restored to 2 (confirmed optimum) in `src/02_train_distill.py`.
+
+**Planned next steps:** with corpus size (n=100) and epoch count (2) now fixed, the remaining levers are the training recipe itself — LR/warmup changes (e.g. lower LR or longer warmup to avoid the near-zero-loss-by-epoch-2 plateau) or held-out early stopping. missing_field remains 52-57% of all failures and is still the primary unsolved problem.
