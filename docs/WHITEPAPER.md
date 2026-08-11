@@ -145,13 +145,19 @@ structural, not corruption-dependent.
 |---|---|---|---|
 | base `MiniCPM5-1B` (zero-shot) | 0 | 0.4263 | reference point, not a hybrid number |
 | iteration 3 | 166 | 0.3873 | overfitting (iteration 4) |
-| **iteration 5/10 (current published checkpoint)** | 636 | **0.4216** (model alone) / **0.6858** (hybrid) | all-time best hybrid F1 |
+| iteration 5/10 | 636 | **0.4216** (model alone) / **0.6858** (hybrid) | all-time best hybrid F1 on the 72-rec eval — **not** the published checkpoint |
 | iteration 12 | 634 (same corpus as iter 5) | 0.6432 (hybrid) | regression, same setup as iter 5 — see §7 |
 | iteration 13 | 1627 | 0.6830 (hybrid) | recovery, still below iter 5/10 |
 | iteration 14 | 2685 | 0.6583 (hybrid) | regression, targeted-corpus hypothesis not supported |
+| **iteration 15 (V2-FINAL, published checkpoint)** | 1625 | **0.6827 (hybrid)** | the published checkpoint — `models/schemaforge-v2-distilled-minicpm5-1b/`, sha256 `c13f7f6c` |
 
-**The currently-published (Hugging Face) checkpoint remains iteration 5/10's** — no later
-iteration produced an unambiguous improvement over it on the directly-comparable eval set.
+**The currently-published (Hugging Face) checkpoint is V2-FINAL (iteration 15)** —
+`models/schemaforge-v2-distilled-minicpm5-1b/` (sha256 `c13f7f6c`): 1625 gate-admitted training
+examples, 72-rec hybrid field F1 0.6827. Iteration 5/10 still holds the all-time 72-rec hybrid-F1
+best (0.6858), but 15's label-determinism fix (greedy teacher decoding, validated on a
+byte-identical corpus re-run — see §7) made it the reproducible, publishable candidate: 0.6827
+sits 0.0031 below the all-time best on a pipeline whose run-to-run variance is now characterized.
+V3 continues this work in `docs/WHITEPAPER_V3.md`.
 
 ## 4. What is NOT in this whitepaper yet
 

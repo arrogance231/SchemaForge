@@ -1,6 +1,6 @@
 ---
 title: "SchemaForge V3 — Whitepaper (DRAFT)"
-status: "DRAFT — NOT FINAL, work just starting"
+status: "DRAFT — NOT FINAL, iterations 1-4 complete"
 last_updated: "2026-08-11"
 predecessor: "docs/WHITEPAPER.md (V2, closed out at iteration 15)"
 ---
@@ -35,6 +35,17 @@ predecessor: "docs/WHITEPAPER.md (V2, closed out at iteration 15)"
 
 (populated as runs complete — see `logs/V3_TRAINING_FAILURES.md` for full technical detail behind
 each entry)
+
+### Iteration 1 — 2026-08-10 — Corpus n=75→100 under the deterministic pipeline (strict gate): NEGATIVE, isolates corpus scale
+
+- **Change tested:** pure corpus scale-up 75→100 documents under the deterministic pipeline
+  (greedy teacher labels, fixed seed), strict gate: **2157/3600 admitted (40.1% rejected)**; 3
+  epochs, 1079 steps/epoch, 3237 total gradient updates.
+- **Result (72-rec eval):** hybrid field F1 **0.6581** (published iter-15 0.6827, -0.0246),
+  missing_field share **58.8%** (211/359) — still inside V2's 55-62% band.
+- **Verdict:** negative vs the published V2-FINAL baseline — corpus size alone (n=75→100) does
+  not close the omission gap; the mechanism to test next is total training steps, not corpus
+  size. Provenance: `experiments/v3-iter1-20260810T155838Z/manifest.json`.
 
 ### Iteration 2 — 2026-08-11 — Epochs 3→2 under the fuzzy-gate corpus (n=100): POSITIVE, confirms the total-training-steps hypothesis
 
