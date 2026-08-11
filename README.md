@@ -13,6 +13,13 @@ for the implementation contract. `docs/WHITEPAPER.md` is a **draft, not final** 
 progress so far — see it for the current results table and an explicit list of what is not yet
 built (full benchmark suite against external systems, further corpus scaling).
 
+## Models on Hugging Face
+
+Public checkpoints of the SchemaForge distillation runs are published on Hugging Face under the [arrochi112](https://huggingface.co/arrochi112) profile:
+
+- [arrochi112/schemaforge-v2-distilled-minicpm5-1b](https://huggingface.co/arrochi112/schemaforge-v2-distilled-minicpm5-1b) — V2-FINAL release checkpoint (iteration 15).
+- [arrochi112/schemaforge-v3-distilled-minicpm5-1b](https://huggingface.co/arrochi112/schemaforge-v3-distilled-minicpm5-1b) — V3 best research checkpoint.
+
 ## Status
 
 **V2 phase — methodologically closed at iteration 15.** The published Hugging Face checkpoint
