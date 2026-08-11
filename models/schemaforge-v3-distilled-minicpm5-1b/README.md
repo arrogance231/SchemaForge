@@ -158,7 +158,4 @@ run); LR 2e-5, batch_size 2, AdamW, cosine schedule, bf16, seed 42.
 
 ## Source repository
 
-Full pipeline (schema registry, deterministic pre-pass, hard-example generator, teacher
-validation gate incl. fuzzy-support recovery, evaluation harness, calibration module,
-failure-category classifier, hybrid routing): see the project repository, not included in this
-checkpoint upload.
+See the [SchemaForge GitHub repository](https://github.com/arrogance231/SchemaForge) for the full pipeline (schema registry, deterministic pre-pass, hard-example generator, teacher-validation gate, evaluation harness, calibration module, failure-category classifier, hybrid routing), the V2/V3 whitepapers, all experiment manifests, and evidence graphs.
