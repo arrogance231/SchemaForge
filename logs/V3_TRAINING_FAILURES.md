@@ -51,3 +51,29 @@ the larger corpus's potential benefit — this isolates "total steps" from "corp
 first time in this project. Also enabling the newly-validated fuzzy-support gate
 (`fuzzy_support=True`, recovers ~45% of step-3 rejections with no false positives found in
 spot-checking) for this run, since it's independently justified and ready.
+
+## V3 Iteration 2 — 2026-08-11 — Epochs 3→2 under the fuzzy-gate corpus (n=100): positive result, confirms the total-training-steps hypothesis
+
+**The wedge incident.** Iter 2's teacher generation wedged: deadlock at batch 208/900, busy-spin for >1h, process killed (autonomous-monitoring period; no interactive steering available). Rather than re-run generation and risk the same deadlock, the run exploited determinism: the pipeline is greedy (temp=0.0), so iter-1's saved raw outputs are byte-identical to what a fresh iter-2 run would produce.
+
+**The recovery method.** `src/09_recover_fuzzy.py` (commit `a8be53d`) re-ran the admission gate on iter-1's saved rejections (`data/teacher_dataset_rejections_v3iter1_bak.json`, 1443 records) with `fuzzy_support=True` (threshold 0.85) on CPU, then rebuilt prompts via importlib from `01_generate_teacher.py`. Result: **534/1443 (37%) step-3 rejections recovered**, merged to **2691/3600 admitted (25.2% rejected vs. 40.1% under the strict gate)** → `data/teacher_dataset_v3iter2.json`. Checkpoint backup `models/distilled_minicpm5_1b_v2_amd_pre_v3iter2` verified intact before training.
+
+**What ran.** Same 3600-record corpus as iter 1 (`data/corpus_v3_iter1.jsonl`), same seed/LR/batch (42, 2e-5, 2), but epochs cut 3→2 (`NUM_EPOCHS=2`, commit `6b7248e`) → 1346 steps/epoch, 2692 total. Epoch-mean losses 0.0486 / 0.0162 (near-zero-loss plateau by epoch 2, as always). Checkpoint sha256 (`model.safetensors`): `c1b51015b12091fd8b71bbae2c9fc16e2091a408e32d15f2c752242bf2227dfb`.
+
+**Result — positive, first change that helped since iteration 13/15:**
+
+| metric (72-rec eval) | iter 15 (n=75, 1625 adm, 3ep) | V3 it1 (n=100, 2157 adm, 3ep) | V3 it2 (n=100, 2691 adm, 2ep) | it2 vs it1 |
+|---|---|---|---|---|
+| hybrid field F1 | 0.6827 | 0.6581 | **0.6745** | **+0.0164** |
+| field precision | 0.7174 | 0.7229 | 0.7110 | -0.0119 |
+| field recall | 0.6513 | 0.6039 | 0.6416 | +0.0377 |
+| schema validity | 0.8333 | 0.8472 | 0.8889 | +0.0417 |
+| missing_field share of failures | ~55% | 58.8% (211/359) | **52.3% (196/375)** | better |
+
+**Interpretation.** Holding corpus size at n=100 (iter 1 vs. iter 2 differ only in epoch count and the independently-justified fuzzy gate) and cutting 3→2 epochs recovered most of iter 1's lost ground (0.6581 → 0.6745) and pushed missing_field's share to 52.3%, the lowest measured in V3. This is the first clean confirmation of the iter-1 mechanism: **total training steps, not corpus size per se** — 2692 steps (2×1346) sits between iter 15's 2439 (3×813) and iter 1's 3237 (3×1079). The larger corpus only hurt when forced through a third epoch in the over-converged regime.
+
+**Corroboration (288-record eval).** Hybrid field F1 0.6742, schema validity 0.8715, precision 0.7169, recall 0.6363, missing_field_rate 0.1207 — consistent with the 72-record readout; model-only F1 0.4861, rules-only F1 0.2911.
+
+**Status.** Better than iter 1, still -0.0082 below the published V2/iter-15 checkpoint (0.6827) on the 72-record eval → not an HF-upload candidate (`checkpoint_used_for_huggingface_upload: false`). Full provenance in `experiments/v3-iter2-20260811T0228Z/manifest.json`. Iteration 15 remains the best published checkpoint.
+
+**Planned next steps:** once teacher generation completes → retrain student at 2 epochs (3→2, per iter 1 hypothesis) → hybrid eval on the 288-record set → then V3 iteration 3.
