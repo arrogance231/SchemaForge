@@ -1,7 +1,7 @@
 ---
 title: "SchemaForge V2 — Whitepaper (DRAFT)"
 status: "DRAFT — NOT FINAL"
-last_updated: "2026-08-10"
+last_updated: "2026-08-11"
 ---
 
 # SchemaForge V2: Hybrid Deterministic + Distilled Semantic Structured Extraction
@@ -117,7 +117,8 @@ run under `experiments/<run-id>/`.
 ## 3. Results — the headline hybrid comparison
 
 Measured on the 72-record eval set (all 12 schemas including the 3 held-out ones), using the
-iteration-5 checkpoint:
+iteration-12 checkpoint (the hybrid 0.6432 below is iteration 12's number; the all-time best,
+iteration 5/10's 0.6858, appears in the iteration table below):
 
 | system | field precision | field recall | field F1 | hallucination rate | schema validity |
 |---|---|---|---|---|---|
@@ -149,15 +150,17 @@ structural, not corruption-dependent.
 | iteration 12 | 634 (same corpus as iter 5) | 0.6432 (hybrid) | regression, same setup as iter 5 — see §7 |
 | iteration 13 | 1627 | 0.6830 (hybrid) | recovery, still below iter 5/10 |
 | iteration 14 | 2685 | 0.6583 (hybrid) | regression, targeted-corpus hypothesis not supported |
-| **iteration 15 (V2-FINAL, published checkpoint)** | 1625 | **0.6827 (hybrid)** | the published checkpoint — `models/schemaforge-v2-distilled-minicpm5-1b/`, sha256 `c13f7f6c` |
+| **iteration 15 (V2-FINAL, release checkpoint)** | 1625 | **0.6827 (hybrid)** | prepared for publication — `models/schemaforge-v2-distilled-minicpm5-1b/`, sha256 `c13f7f6c`; NOT yet uploaded to HF |
 
-**The currently-published (Hugging Face) checkpoint is V2-FINAL (iteration 15)** —
-`models/schemaforge-v2-distilled-minicpm5-1b/` (sha256 `c13f7f6c`): 1625 gate-admitted training
-examples, 72-rec hybrid field F1 0.6827. Iteration 5/10 still holds the all-time 72-rec hybrid-F1
-best (0.6858), but 15's label-determinism fix (greedy teacher decoding, validated on a
-byte-identical corpus re-run — see §7) made it the reproducible, publishable candidate: 0.6827
-sits 0.0031 below the all-time best on a pipeline whose run-to-run variance is now characterized.
-V3 continues this work in `docs/WHITEPAPER_V3.md`.
+**The currently-published (Hugging Face) checkpoint remains iteration 5/10** (per
+`logs/V2_TRAINING_FAILURES.md` — iterations 13, 14, and 15 each explicitly declined upload).
+**V2-FINAL (iteration 15) is the release checkpoint prepared for publication** —
+`models/schemaforge-v2-distilled-minicpm5-1b/` (sha256 `c13f7f6c`), 1625 gate-admitted training
+examples, 72-rec hybrid field F1 0.6827, pending the project owner's Hugging Face upload.
+Iteration 5/10 still holds the all-time 72-rec hybrid-F1 best (0.6858); 15's label-determinism
+fix (greedy teacher decoding, validated on a byte-identical corpus re-run — see §7) made it the
+reproducible, publishable candidate: 0.6827 sits 0.0031 below the all-time best on a pipeline
+whose run-to-run variance is now characterized. V3 continues this work in `docs/WHITEPAPER_V3.md`.
 
 ## 4. What is NOT in this whitepaper yet
 
