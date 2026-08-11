@@ -17,7 +17,7 @@ pipeline_tag: text-generation
 > recommended for Hugging Face upload.** It is the best checkpoint produced by V3's iteration
 > sweep (2 epochs at LR=2e-5 under the fuzzy-recovered 2691-record corpus), archived with full
 > provenance for reproducibility of V3's results. Its hybrid field F1 on the 72-record eval
-> (**0.6745**) sits **-0.0082 below the published V2-FINAL checkpoint (0.6827)**, and no V3
+> (**0.6745**) sits **-0.0082 below the release checkpoint (V2-FINAL, prepared for publication) (0.6827)**, and no V3
 > checkpoint exceeded V2-FINAL on the comparable eval. See
 > **[SchemaForge V3 whitepaper](../../docs/WHITEPAPER_V3.md)**, the
 > **[V3 findings note (iterations 1-4)](../../docs/FINDINGS_V3_ITERATIONS_1_4.md)**, and
@@ -29,7 +29,7 @@ A student checkpoint (`openbmb/MiniCPM5-1B`, ~1.04B params) sequence-level knowl
 from a `google/gemma-4-31B` teacher for JSON/structured extraction across 12 document schemas
 (invoice, receipt, resume, contract, support ticket, medical note, insurance claim, CRM record,
 email, conversation, form, knowledge-graph triple) — the same architecture and pipeline as the
-published SchemaForge V2 checkpoint (`models/schemaforge-v2-distilled-minicpm5-1b/`). V3's goal
+SchemaForge V2 release checkpoint (`models/schemaforge-v2-distilled-minicpm5-1b/`, prepared for publication). V3's goal
 is to close `missing_field` (omission), the dominant failure category across every V2
 configuration measured (55-62% of all failures). **This checkpoint is the best of V3's four
 iterations**: the first change to help since V2 iterations 13/15, it cut `missing_field`'s share
@@ -54,7 +54,7 @@ The recipe grid is now bracketed: **2 epochs at LR=2e-5 is the confirmed optimum
 default recipe was already near-optimal for this corpus. This checkpoint sits at that optimum,
 produced by the fully deterministic pipeline (greedy teacher labels, fixed seed, verified
 checkpoint backup), so its score is a stable, reproducible measurement. It does not, however,
-beat the published V2-FINAL baseline on the comparable eval — which is exactly why it is
+beat the release V2-FINAL (prepared for publication) baseline on the comparable eval — which is exactly why it is
 archived, not published.
 
 ## Training data
@@ -93,14 +93,14 @@ Corroboration on the 288-record eval (`data/eval_holdout_v2.jsonl`): hybrid fiel
 (precision 0.7169, recall 0.6363, hallucination rate 0.0324, schema validity 0.8715,
 missing_field_rate 0.1207) — consistent with the 72-record readout.
 
-**Comparison to the published checkpoint:** 72-rec hybrid field F1 **0.6745 vs 0.6827**
-(V2-FINAL, iteration 15) — **-0.0082**. This checkpoint does not beat the published release
+**Comparison to the V2 release checkpoint:** 72-rec hybrid field F1 **0.6745 vs 0.6827**
+(V2-FINAL, iteration 15) — **-0.0082**. This checkpoint does not beat the release
 checkpoint on the comparable eval. That is the explicit reason this card does not recommend HF
 upload (`checkpoint_used_for_huggingface_upload: false` in the run manifest).
 
 ## Known limitations
 
-- **Below the published V2-FINAL checkpoint** on the comparable 72-record eval (-0.0082):
+- **Below the release checkpoint (V2-FINAL, prepared for publication)** on the comparable 72-record eval (-0.0082):
   archived for reproducibility of V3's results, not for deployment.
 - `missing_field` (omission) remains the dominant failure category — 52.3% share here, V3's
   confirmed best. The total-training-steps mechanism improved it but did not close it.
@@ -130,7 +130,7 @@ out = model.generate(**inputs, max_new_tokens=512, do_sample=False)
 print(tokenizer.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True))
 ```
 
-For production use, run the **published V2-FINAL checkpoint** behind the deterministic pre-pass
+For production use, run the **release V2-FINAL (prepared for publication) checkpoint** behind the deterministic pre-pass
 (`schemaforge/deterministic/`) and merge with `schemaforge/hybrid/pipeline.py`'s
 `merge_prediction` — do not use this checkpoint in production (it underperforms V2-FINAL). The
 prompt format (schema name + explicit residual field list from the schema's `semantic_fields`

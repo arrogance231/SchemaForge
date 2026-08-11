@@ -9,7 +9,7 @@ predecessor: "docs/WHITEPAPER.md (V2, closed out at iteration 15)"
 
 > **STATUS: DRAFT.** V2 (`docs/WHITEPAPER.md`) is considered methodologically closed as of
 > iteration 15 — the pipeline is reproducible, the hybrid architecture's headline claim is
-> validated, and the published checkpoint (see `models/schemaforge-v2-distilled-minicpm5-1b/`)
+> validated, and the release checkpoint, prepared for publication (see `models/schemaforge-v2-distilled-minicpm5-1b/`)
 > reflects that closure. V3 starts from that baseline and targets the model's own remaining
 > weaknesses. This document is assembled live as V3 iterations run; treat
 > `logs/V3_TRAINING_FAILURES.md` as the authoritative append-only record, same convention as V2's
@@ -41,9 +41,9 @@ each entry)
 - **Change tested:** pure corpus scale-up 75→100 documents under the deterministic pipeline
   (greedy teacher labels, fixed seed), strict gate: **2157/3600 admitted (40.1% rejected)**; 3
   epochs, 1079 steps/epoch, 3237 total gradient updates.
-- **Result (72-rec eval):** hybrid field F1 **0.6581** (published iter-15 0.6827, -0.0246),
+- **Result (72-rec eval):** hybrid field F1 **0.6581** (V2-FINAL/iter-15 0.6827, -0.0246),
   missing_field share **58.8%** (211/359) — still inside V2's 55-62% band.
-- **Verdict:** negative vs the published V2-FINAL baseline — corpus size alone (n=75→100) does
+- **Verdict:** negative vs the V2-FINAL baseline (release checkpoint) — corpus size alone (n=75→100) does
   not close the omission gap; the mechanism to test next is total training steps, not corpus
   size. Provenance: `experiments/v3-iter1-20260810T155838Z/manifest.json`.
 
@@ -52,7 +52,7 @@ each entry)
 - **Wedge incident & recovery:** iter-2 teacher generation deadlocked at batch 208/900 (>1h busy-spin, killed). Recovered via determinism — `src/09_recover_fuzzy.py` re-ran the gate with `fuzzy_support=True` on iter-1's saved rejections, recovering 534/1443 (37%) → **2691/3600 admitted** (25.2% rejected vs 40.1% strict). Pre-iteration checkpoint backup `..._pre_v3iter2` verified intact.
 - **Change tested:** corpus held at n=100 (same source), epochs 3→2 (`NUM_EPOCHS=2`, commit `6b7248e`): 1346 steps/epoch, 2692 total; epoch-mean losses 0.0486 / 0.0162; checkpoint sha256 `c1b51015…7dfb`.
 - **Result (72-rec eval):** hybrid field F1 **0.6745** (it1 0.6581, +0.0164), schema validity 0.8889, missing_field share **52.3%** (196/375) — lowest in V3. 288-rec eval corroborates: F1 0.6742, schema validity 0.8715, missing_field_rate 0.1207.
-- **Verdict:** first change to help since iter 13/15; confirms iter-1's mechanism (total training steps, not corpus size — 2692 steps sits between iter 15's 2439 and iter 1's 3237). Still -0.0082 below published iter-15 (0.6827) on the 72-rec eval → not an HF-upload candidate. Provenance: `experiments/v3-iter2-20260811T0228Z/manifest.json`.
+- **Verdict:** first change to help since iter 13/15; confirms iter-1's mechanism (total training steps, not corpus size — 2692 steps sits between iter 15's 2439 and iter 1's 3237). Still -0.0082 below V2-FINAL/iter-15 (0.6827, release checkpoint) on the 72-rec eval → not an HF-upload candidate. Provenance: `experiments/v3-iter2-20260811T0228Z/manifest.json`.
 
 ### Iteration 3 — 2026-08-11 — Epochs 2→1 under the fuzzy-gate corpus (n=100): NEGATIVE, completes the epoch sweep
 
