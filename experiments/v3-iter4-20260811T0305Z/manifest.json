@@ -1,0 +1,49 @@
+{
+  "run_id": "v3-iter4-20260811T0305Z",
+  "status": "completed",
+  "status_note": "LR sensitivity test at the confirmed 2-epoch optimum: LR 2e-5 -> 1e-5 on the same 2691-record fuzzy-recovered corpus. Negative result -- lower LR under-trains (final epoch loss 0.0333 vs 0.0162 at 2e-5; schema validity drops to 0.8056). 72-rec hybrid F1 0.6671 vs iter-2's 0.6745. Brackets the LR dimension: 2e-5 (the V2/V3 default) is confirmed near-optimal.",
+
+  "provenance": {
+    "git_commit": "(see commit for this run -- LR constant introduced server-side then mirrored locally and restored to 2e-5)",
+    "note": "LR made a named constant (LR = 1e-5) for this run only; restored to LR = 2e-5 on the server and in the repo after evaluation, since 2e-5 is the confirmed optimum.",
+    "orchestrator": "manual (src/02_train_distill.py via SSH + nohup; src/08_hybrid_eval.py, src/07_failure_eval.py)",
+    "checkpoint_backup_performed_manually": "models/distilled_minicpm5_1b_v2_amd_pre_v3iter4 (the best iter-2 2-epoch checkpoint, preserved before this test; restored to canonical after evaluation)"
+  },
+
+  "dataset": {
+    "source": "data/teacher_dataset.json (the fuzzy-recovered 2691-record corpus from V3 iter 2 -- identical dataset)",
+    "teacher_gate_admitted": 2691,
+    "recovery_script": "src/09_recover_fuzzy.py (iter-2 recovery; unchanged for this run)"
+  },
+
+  "training_configuration": {
+    "changes_from_iteration_2": "LR only: 2e-5 -> 1e-5. Everything else identical (2 epochs, batch_size 2, AdamW, cosine schedule with 2 warmup steps, bf16, seed 42).",
+    "total_training_steps": 2692,
+    "per_epoch_steps": 1346,
+    "learning_rate": "1e-5 (vs 2e-5 default)"
+  },
+
+  "training_performance": {
+    "per_epoch_loss": {"epoch_1": 0.0678, "epoch_2": 0.0333, "note": "higher final loss than iter-2's 0.0162 at LR=2e-5 -- the lower LR under-converges on this small corpus"},
+    "precision_confirmed": "bf16"
+  },
+
+  "evaluation_metrics_72record_eval": {
+    "hybrid": {"exact_match": 0.2639, "schema_validity": 0.8056, "field_precision": 0.6884, "field_recall": 0.6471, "field_f1": 0.6671, "hallucination_rate": 0.0208, "missing_field_rate": 0.0934, "n_records": 72},
+    "failure_by_category": {"missing_field": 202, "hallucinated_field": 40, "unclassified_mismatch": 80, "incorrect_nesting": 16, "ambiguous_input": 7, "wrong_entity_boundary": 6, "wrong_inferred_value": 5, "schema_violation": 2, "incorrect_normalization": 0},
+    "failure_total": 358,
+    "missing_field_share_of_failures": 0.564,
+    "comparison_to_iteration_2": "field F1 DROPPED (0.6745 -> 0.6671, -0.0074) at LR=1e-5; schema validity dropped 0.8889 -> 0.8056. Lower LR under-trains."
+  },
+
+  "evaluation_metrics_288record_eval": {
+    "hybrid": {"exact_match": 0.2292, "schema_validity": 0.8611, "field_precision": 0.6993, "field_recall": 0.6339, "field_f1": 0.6650, "hallucination_rate": 0.0333, "missing_field_rate": 0.1200, "n_records": 288},
+    "note": "consistent with the 72-record readout; also below iter-2's 288-rec F1 0.6742"
+  },
+
+  "final_artifacts": {
+    "checkpoint_used_for_huggingface_upload": false,
+    "checkpoint_used_for_huggingface_upload_note": "Worse than iter-2 on every headline metric. The canonical checkpoint path was restored to the best model (iter-2, 2-epoch, LR=2e-5) after this test.",
+    "epoch_lr_optimum": "2 epochs / LR=2e-5 (confirmed by sweeps: epochs 1/2/3 and LR 1e-5/2e-5)"
+  }
+}

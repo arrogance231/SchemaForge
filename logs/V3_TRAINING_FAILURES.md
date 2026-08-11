@@ -99,3 +99,23 @@ spot-checking) for this run, since it's independently justified and ready.
 **Status.** Negative result vs iter 2 but informative: it closes the epoch sweep with a clean optimum at 2 epochs. Not an HF-upload candidate (`checkpoint_used_for_huggingface_upload: false`). Full provenance in `experiments/v3-iter3-20260811T0240Z/manifest.json`. `NUM_EPOCHS` restored to 2 (confirmed optimum) in `src/02_train_distill.py`.
 
 **Planned next steps:** with corpus size (n=100) and epoch count (2) now fixed, the remaining levers are the training recipe itself — LR/warmup changes (e.g. lower LR or longer warmup to avoid the near-zero-loss-by-epoch-2 plateau) or held-out early stopping. missing_field remains 52-57% of all failures and is still the primary unsolved problem.
+
+## V3 Iteration 4 — 2026-08-11 — LR 2e-5→1e-5 at the 2-epoch optimum: negative result, brackets the LR dimension
+
+**What ran.** Same 2691-record fuzzy-recovered corpus, same 2-epoch schedule as iteration 2 (the confirmed optimum), LR lowered 2e-5 → 1e-5 (named `LR` constant added for this run, restored to 2e-5 after evaluation). 1346 steps/epoch, 2692 total. Epoch losses 0.0678 / 0.0333 — notably higher than iter-2's 0.0162 final, a first sign of under-convergence.
+
+**Result — negative:**
+
+| metric (72-rec eval) | iter 2 (LR 2e-5) | iter 4 (LR 1e-5) | delta |
+|---|---|---|---|
+| field F1 | 0.6745 | 0.6671 | **-0.0074** |
+| field precision | 0.7110 | 0.6884 | -0.0226 |
+| field recall | 0.6416 | 0.6471 | +0.0055 |
+| schema validity | 0.8889 | 0.8056 | **-0.0833** |
+| missing_field share | 52.3% | 56.4% (202/358) | worse |
+
+288-rec eval corroborates: F1 0.6650 (vs 0.6742), schema validity 0.8611 (vs 0.8715).
+
+**Interpretation.** The lower LR under-trains on this small corpus: higher final training loss, and the biggest regression is schema validity (more schema-invalid model outputs reach the hybrid merge). Combined with the epoch sweep (1/2/3), the training-recipe picture is now: **2 epochs at LR=2e-5 is the confirmed optimum** of the tested recipe grid. V2/V3's default recipe was already near-optimal for this corpus; neither more steps (iter 1, 3 epochs) nor fewer (iter 3, 1 epoch) nor a lower LR helps.
+
+**Status.** Iter-2's checkpoint restored to canonical after this test. Still not an HF-upload candidate (iter-2 remains best in V3 at 0.6745, still -0.0082 below published V2/iter-15's 0.6827).

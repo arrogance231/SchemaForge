@@ -49,6 +49,12 @@ each entry)
 - **Result (72-rec eval):** hybrid field F1 **0.6597** (it2 0.6745, -0.0148), schema validity 0.9583, missing_field share back to **57.0%** (196/344). 288-rec eval corroborates: F1 0.6524, schema validity 0.9410, missing_field_rate 0.1577.
 - **Verdict:** negative vs iter 2 but completes the sweep — 1ep 0.6597 / 2ep 0.6745 / 3ep 0.6581, so **2 epochs is the confirmed optimum** under the fuzzy-gate corpus. Repo restored to `NUM_EPOCHS=2`. Not an HF-upload candidate. Provenance: `experiments/v3-iter3-20260811T0240Z/manifest.json`.
 
+### Iteration 4 — 2026-08-11 — LR 2e-5→1e-5 at the 2-epoch optimum: NEGATIVE, brackets the LR dimension
+
+- **Change tested:** LR lowered 2e-5 → 1e-5 (named `LR` constant added for this run, restored to 2e-5 after): same 2691-record fuzzy corpus, same 2 epochs (1346 steps/epoch, 2692 total); epoch losses 0.0678 / 0.0333.
+- **Result (72-rec eval):** hybrid field F1 **0.6671** (it2 0.6745, -0.0074), schema validity **0.8056** (it2 0.8889, -0.0833 — the biggest regression), missing_field share 56.4% (202/358). 288-rec eval corroborates: F1 0.6650, schema validity 0.8611.
+- **Verdict:** negative — the lower LR under-trains on this small corpus (higher final loss, more schema-invalid outputs). Recipe grid now bracketed: **2 epochs / LR=2e-5 is the confirmed optimum**; V2/V3's default recipe was already near-optimal. Not an HF-upload candidate. Provenance: `experiments/v3-iter4-20260811T0305Z/manifest.json`.
+
 ## Open questions V3 aims to answer
 
 1. Does stacking `delabel`/`implicit` on top of the full ten-operator mix (rather than isolating

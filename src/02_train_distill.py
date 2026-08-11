@@ -78,6 +78,7 @@ def main():
     OUTPUT_DIR = "./models/distilled_minicpm5_1b_v2_amd"
 
     NUM_EPOCHS = 2
+    LR = 2e-5
 
     SEED = 42
     torch.manual_seed(SEED)
@@ -101,7 +102,7 @@ def main():
     dataloader = DataLoader(dataset, batch_size=2, shuffle=True)
 
     criterion = nn.CrossEntropyLoss(ignore_index=-100)
-    optimizer = AdamW(student.parameters(), lr=2e-5, weight_decay=0.01)
+    optimizer = AdamW(student.parameters(), lr=LR, weight_decay=0.01)
     scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=2, num_training_steps=len(dataloader) * NUM_EPOCHS)
 
     print(f"[*] Starting V2 (AMD MI300X) Sequence-Level KD Loop (15 Multi-Domain Pairs, {NUM_EPOCHS} Epochs)...")
