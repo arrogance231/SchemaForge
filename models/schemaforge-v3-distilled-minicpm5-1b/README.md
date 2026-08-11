@@ -13,12 +13,14 @@ pipeline_tag: text-generation
 
 # SchemaForge V3 — Distilled MiniCPM5-1B (V3 best checkpoint, iteration 2)
 
-> **This checkpoint is NOT the published SchemaForge release checkpoint, and it is NOT
-> recommended for Hugging Face upload.** It is the best checkpoint produced by V3's iteration
-> sweep (2 epochs at LR=2e-5 under the fuzzy-recovered 2691-record corpus), archived with full
-> provenance for reproducibility of V3's results. Its hybrid field F1 on the 72-record eval
-> (**0.6745**) sits **-0.0082 below the release checkpoint (V2-FINAL, prepared for publication) (0.6827)**, and no V3
-> checkpoint exceeded V2-FINAL on the comparable eval. See
+> **This is a public research/development checkpoint from the SchemaForge V3 phase. It is NOT
+> the project's release checkpoint — V2-FINAL (models/schemaforge-v2-distilled-minicpm5-1b/)
+> is the recommended deployment choice** — and its hybrid field F1 (0.6745) sits **-0.0082
+> below V2-FINAL (0.6827)** on the 72-record eval. It is published because it is the best of
+> V3's four iterations and demonstrates the project's primary improvement: missing_field's
+> share of failures dropped to 52.3%, the lowest measured across V2 and V3. All training and
+> evaluation compute was contributed by the AMD AI Developer Program on an AMD Instinct MI300X
+> (192GB, ROCm). See
 > **[SchemaForge V3 whitepaper](../../docs/WHITEPAPER_V3.md)**, the
 > **[V3 findings note (iterations 1-4)](../../docs/FINDINGS_V3_ITERATIONS_1_4.md)**, and
 > `logs/V3_TRAINING_FAILURES.md` for the full iteration history.
@@ -55,7 +57,7 @@ default recipe was already near-optimal for this corpus. This checkpoint sits at
 produced by the fully deterministic pipeline (greedy teacher labels, fixed seed, verified
 checkpoint backup), so its score is a stable, reproducible measurement. It does not, however,
 beat the release V2-FINAL (prepared for publication) baseline on the comparable eval — which is exactly why it is
-archived, not published.
+published as a research checkpoint, not the project's release checkpoint.
 
 ## Training data
 
@@ -95,8 +97,9 @@ missing_field_rate 0.1207) — consistent with the 72-record readout.
 
 **Comparison to the V2 release checkpoint:** 72-rec hybrid field F1 **0.6745 vs 0.6827**
 (V2-FINAL, iteration 15) — **-0.0082**. This checkpoint does not beat the release
-checkpoint on the comparable eval. That is the explicit reason this card does not recommend HF
-upload (`checkpoint_used_for_huggingface_upload: false` in the run manifest).
+checkpoint on the comparable eval. That is the explicit reason V2-FINAL, not this checkpoint, is the recommended deployment
+checkpoint (`checkpoint_used_for_huggingface_upload` was recorded as false at eval time, prior to this
+publication decision).
 
 ## Known limitations
 
@@ -139,10 +142,11 @@ minus whatever the deterministic pass already resolved) must match training; see
 
 ## Training/compute
 
-AMD Instinct MI300X (192GB), ROCm 7.0.2, PyTorch 2.11.0.dev+rocm7.0. GPU access provided by the
-AMD AI Developer Program. This checkpoint: 2 epochs × 1346 steps = 2692 total gradient updates;
-epoch-mean losses 0.0486 / 0.0162 (near-zero-loss plateau by epoch 2, as in every run); LR 2e-5,
-batch_size 2, AdamW, cosine schedule, bf16, seed 42.
+**Compute acknowledgment: all training and evaluation for this checkpoint was contributed by
+the AMD AI Developer Program, on an AMD Instinct MI300X (192GB VRAM) with ROCm 7.0.2 /
+PyTorch 2.11.0.dev+rocm7.0.** This checkpoint: 2 epochs × 1346 steps = 2692 total gradient
+updates; epoch-mean losses 0.0486 / 0.0162 (near-zero-loss plateau by epoch 2, as in every
+run); LR 2e-5, batch_size 2, AdamW, cosine schedule, bf16, seed 42.
 
 ## Checkpoint identity
 
@@ -150,7 +154,7 @@ batch_size 2, AdamW, cosine schedule, bf16, seed 42.
 - Training run: `v3-iter2-20260811T0228Z` (see `experiments/v3-iter2-20260811T0228Z/manifest.json`
   for full machine-readable provenance)
 - Git commits: `a848a7c` (2-epoch retrain; dataset recovery landed at `a8be53d`)
-- NOT the published checkpoint; `checkpoint_used_for_huggingface_upload: false`
+- Published 2026-08-11 as a public research checkpoint (huggingface.co/arrochi112/schemaforge-v3-distilled-minicpm5-1b); V2-FINAL remains the recommended release/deployment checkpoint (checkpoint_used_for_huggingface_upload was recorded as false at eval time, prior to this publication decision)
 
 ## Source repository
 
