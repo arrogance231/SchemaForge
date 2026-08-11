@@ -15,6 +15,14 @@ built (full benchmark suite against external systems, further corpus scaling).
 
 ## Status
 
+**V2 phase — methodologically closed at iteration 15.** The published Hugging Face checkpoint
+remains **iteration 5/10**; the **V2-FINAL iteration-15 release checkpoint** (sha256
+`c13f7f6c…`, hybrid field F1 **0.6827**) is prepared for publication at
+`models/schemaforge-v2-distilled-minicpm5-1b/`. **V3 phase — open:** iterations 1–4 recorded in
+`docs/WHITEPAPER_V3.md` and `logs/V3_TRAINING_FAILURES.md` — the recipe sweep confirms
+**2 epochs / LR=2e-5** as the optimum; best V3 hybrid field F1 **0.6745**; `missing_field` share
+of failures reduced to **52.3%**.
+
 Build order per research direction §11:
 
 | Step | Component | Status |
@@ -27,17 +35,35 @@ Build order per research direction §11:
 | 6 | Confidence + calibration (`schemaforge/calibration/`) | done — ECE, reliability diagram, risk-coverage curve, temperature scaling |
 | 7 | Hybrid pipeline + routing threshold sweep (`schemaforge/hybrid/`) | done — hybrid (rules → model) beats both systems alone on every metric |
 | 7 | Failure analysis (`schemaforge/failure_analysis/`) | done — 8-category classifier + honest catch-all, real bug found and fixed |
-| 8 | Continual distillation loop (`src/09_loop.py`) | driver built and dry-run verified; a real full-loop iteration is in progress as of this export — see `experiments/` for its live provenance record |
+| 8 | Continual distillation loop (`src/09_loop.py`) | done — V2 loop ran through iteration 15 (V2-FINAL); V3 iterations 1–4 in `docs/WHITEPAPER_V3.md` |
 
-**Headline result so far:** on a 72-record eval set, the hybrid system (deterministic pre-pass +
-distilled model, routed by field ownership) reaches field F1 **0.686**, vs. **0.291** for the
-deterministic pass alone and **0.485** for the model alone — beating both individual systems on
-every metric simultaneously, including a hallucination rate an order of magnitude below the
-model-alone run. Full numbers: `logs/V2_TRAINING_FAILURES.md` iteration 10.
+**Headline result so far (V2-FINAL):** on the 72-record eval set, the hybrid system
+(deterministic pre-pass + distilled model, routed by field ownership) reaches field F1
+**0.6827**, vs. **0.291** for the deterministic pass alone and **~0.484** for the model alone —
+beating both individual systems on every metric simultaneously. Full numbers and provenance:
+`docs/WHITEPAPER.md` (V2, closed at iteration 15) and `docs/WHITEPAPER_V3.md` (V3, iterations
+1–4).
 
 **This is still a research-in-progress result, not a finished benchmark.** Several negative and
-mixed results are documented rather than hidden (see iterations 4, 6, 8 in the training log) —
-reading the full log, not just this summary table, is the accurate picture.
+mixed results are documented rather than hidden (see iterations 4, 6, 8, 13 in the V2 training
+log) — reading the full logs, not just this summary table, is the accurate picture.
+
+## Roadmap
+
+**V2 phase — closed.** Pipeline reproducible end-to-end; hybrid claim validated (V2-FINAL
+checkpoint, sha256 `c13f7f6c…`); iteration-15 release checkpoint prepared for publication.
+
+**V3 phase — in progress.** Next levers:
+1. **Delabel/implicit stacking test** over the full operator mix — both corruption families
+   composited on the same document.
+2. **Held-out validation-based early stopping** — replace the fixed epoch grid with a
+   held-out-val stop criterion.
+3. **Larger eval set** — more held-out schemas and documents to tighten the 72-record CIs.
+
+**Pending external actions.**
+- **Hugging Face upload** of the V2-FINAL release checkpoint
+  (`models/schemaforge-v2-distilled-minicpm5-1b/`, sha256 `c13f7f6c…`).
+- **Optional GitHub release/tag** for this standalone repository (`v2.0.0`).
 
 ## Hardware
 
