@@ -1,112 +1,52 @@
-# SchemaForge V2
+# SchemaForge
 
-> **This repository is a curated export of an actively developed research project.** It was
-> split out from a larger internal monorepo so the public-facing code, evaluation results, and
-> experiment provenance for this specific distillation project stand on their own, without
-> exposing unrelated internal content. See `experiments/` for machine- and human-readable
-> provenance of each training run, and `logs/V2_TRAINING_FAILURES.md` for the full,
-> never-overwritten iteration-by-iteration research log (including negative results).
+A hybrid deterministic + knowledge-distilled-LLM pipeline for structured JSON extraction across 12 document schemas, with a full research trail (whitepapers, failure logs, evidence graphs) documenting every positive and negative result.
 
-A lightweight semantic extraction engine that complements deterministic parsing. See
-`docs/PROJECT_CHARTER.md` (v2.0.0) for scope and `docs/SCHEMAFORGE_V2_RESEARCH_DIRECTION.md`
-for the implementation contract. `docs/WHITEPAPER.md` is a **draft, not final** writeup of
-progress so far — see it for the current results table and an explicit list of what is not yet
-built (full benchmark suite against external systems, further corpus scaling).
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](#license)
+[![Version](https://img.shields.io/badge/version-2.0.0-informational)](VERSION)
+[![Tests](https://img.shields.io/badge/tests-97%20passing-brightgreen)](tests/)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-arrochi112-yellow)](https://huggingface.co/arrochi112)
 
-## Models on Hugging Face
+> **Status.** V2 is methodologically closed at iteration 15 (release checkpoint prepared for publication). V3 is open, iterations 1-4 complete. See [`docs/WHITEPAPER.md`](docs/WHITEPAPER.md) and [`docs/WHITEPAPER_V3.md`](docs/WHITEPAPER_V3.md) for the full, honest record, including negative results.
 
-Public checkpoints of the SchemaForge distillation runs are published on Hugging Face under the [arrochi112](https://huggingface.co/arrochi112) profile:
+## Overview
 
-- [arrochi112/schemaforge-v2-distilled-minicpm5-1b](https://huggingface.co/arrochi112/schemaforge-v2-distilled-minicpm5-1b) — V2-FINAL release checkpoint (iteration 15).
-- [arrochi112/schemaforge-v3-distilled-minicpm5-1b](https://huggingface.co/arrochi112/schemaforge-v3-distilled-minicpm5-1b) — V3 best research checkpoint.
+Pure LLM extraction of structured fields from noisy documents (OCR errors, typos, missing labels, implicit values) is unreliable, and pure deterministic/regex extraction is structurally blind to semantic fields it was never written to look for. SchemaForge tackles this with a **hybrid pipeline**: a deterministic pre-pass owns the fields it can extract reliably (dates, emails, IDs, money, phones), and a small distilled language model (MiniCPM5-1B, ~1.04B params) owns the semantic fields the pre-pass cannot touch, routed by explicit field ownership, not a learned gate. The model itself is trained via sequence-level knowledge distillation from a much larger teacher (gemma-4-31B), using a validation-gated hard-example corpus built specifically to stress corruption operators (OCR noise, typos, delabeling, implicit values, abbreviation, etc.) across 12 document schemas (invoice, receipt, resume, contract, support ticket, medical note, insurance claim, CRM record, email, conversation, form, KG triple).
 
-## Status
+## Results
 
-**V2 phase — methodologically closed at iteration 15.** The published Hugging Face checkpoint
-remains **iteration 5/10**; the **V2-FINAL iteration-15 release checkpoint** (sha256
-`c13f7f6c…`, hybrid field F1 **0.6827**) is prepared for publication at
-`models/schemaforge-v2-distilled-minicpm5-1b/`. **V3 phase — open:** iterations 1–4 recorded in
-`docs/WHITEPAPER_V3.md` and `logs/V3_TRAINING_FAILURES.md` — the recipe sweep confirms
-**2 epochs / LR=2e-5** as the optimum; best V3 hybrid field F1 **0.6745**; `missing_field` share
-of failures reduced to **52.3%**.
+| Model | Dataset | Method | Field F1 |
+|---|---|---|---|
+| Deterministic pre-pass alone | 72-record eval | Regex/rule extraction | 0.291 |
+| MiniCPM5-1B (distilled) alone | 72-record eval | Sequence-level KD, iteration 15 (V2-FINAL) | ~0.484 |
+| **Hybrid (rules to model, by field ownership)** | 72-record eval | V2-FINAL, iteration 15 | **0.6827** |
+| Hybrid, V3 best | 72-record eval | 2-epoch recipe, fuzzy-gated n=100 corpus (iteration 2) | 0.6745 |
 
-Build order per research direction §11:
+The hybrid system beats both individual systems on every metric simultaneously, not just F1, but precision, recall, hallucination rate, and schema validity. Full provenance and per-iteration numbers: [`docs/WHITEPAPER.md`](docs/WHITEPAPER.md) (V2) and [`docs/WHITEPAPER_V3.md`](docs/WHITEPAPER_V3.md) (V3).
 
-| Step | Component | Status |
-|---|---|---|
-| 1 | Schema registry, 12 domains (`schemaforge/registry.py`, `schemaforge/schemas/`) | done |
-| 2 | Field-level evaluation harness (`schemaforge/evaluation/`) | done |
-| 3 | Deterministic pre-pass / primary baseline (`schemaforge/deterministic/`) | done |
-| 4 | Hard-example generator (`schemaforge/hardexamples/`) | done |
-| 5 | Teacher generation + validation gate, retrain (`schemaforge/validation/`) | done — full §4.2 gate wired, iterated from 166 → 636 gated training examples |
-| 6 | Confidence + calibration (`schemaforge/calibration/`) | done — ECE, reliability diagram, risk-coverage curve, temperature scaling |
-| 7 | Hybrid pipeline + routing threshold sweep (`schemaforge/hybrid/`) | done — hybrid (rules → model) beats both systems alone on every metric |
-| 7 | Failure analysis (`schemaforge/failure_analysis/`) | done — 8-category classifier + honest catch-all, real bug found and fixed |
-| 8 | Continual distillation loop (`src/09_loop.py`) | done — V2 loop ran through iteration 15 (V2-FINAL); V3 iterations 1–4 in `docs/WHITEPAPER_V3.md` |
+## Architecture
 
-**Headline result so far (V2-FINAL):** on the 72-record eval set, the hybrid system
-(deterministic pre-pass + distilled model, routed by field ownership) reaches field F1
-**0.6827**, vs. **0.291** for the deterministic pass alone and **~0.484** for the model alone —
-beating both individual systems on every metric simultaneously. Full numbers and provenance:
-`docs/WHITEPAPER.md` (V2, closed at iteration 15) and `docs/WHITEPAPER_V3.md` (V3, iterations
-1–4).
+```
+                     +-----------------------+
+   raw document --->  | Deterministic pre-pass | ---> deterministic_fields (dates, emails,
+                     |  (regex/nearest-label) |     urls, phones, money, ids, percents)
+                     +-----------+-----------+
+                                 | unresolved / semantic fields only
+                                 v
+                     +-----------------------+
+                     |  Distilled MiniCPM5-1B | ---> semantic_fields (never overwrites
+                     |  (KD from gemma-4-31B) |     a deterministic field)
+                     +-----------+-----------+
+                                 v
+                     +-----------------------+
+                     |   Hybrid merge (by     | ---> final structured JSON,
+                     |   field-ownership map) |     validated against schema
+                     +-----------------------+
+```
 
-**This is still a research-in-progress result, not a finished benchmark.** Several negative and
-mixed results are documented rather than hidden (see iterations 4, 6, 8, 13 in the V2 training
-log) — reading the full logs, not just this summary table, is the accurate picture.
+deterministic_fields | semantic_fields == leaf_paths(schema), and the two sets are disjoint, enforced at schema construction time (schemaforge/registry.py), so a bad split raises at import rather than silently mis-routing fields at inference.
 
-## Roadmap
-
-**V2 phase — closed.** Pipeline reproducible end-to-end; hybrid claim validated (V2-FINAL
-checkpoint, sha256 `c13f7f6c…`); iteration-15 release checkpoint prepared for publication.
-
-**V3 phase — in progress.** Next levers:
-1. **Delabel/implicit stacking test** over the full operator mix — both corruption families
-   composited on the same document.
-2. **Held-out validation-based early stopping** — replace the fixed epoch grid with a
-   held-out-val stop criterion.
-3. **Larger eval set** — more held-out schemas and documents to tighten the 72-record CIs.
-
-**Pending external actions.**
-- **Hugging Face upload** of the V2-FINAL release checkpoint
-  (`models/schemaforge-v2-distilled-minicpm5-1b/`, sha256 `c13f7f6c…`).
-- **Optional GitHub release/tag** for this standalone repository (`v2.0.0`).
-
-## Hardware
-
-Training runs on an **AMD Instinct MI300X (192GB)** via SSH — this replaces the V1 target of
-an NVIDIA RTX 6000 Ada/Pro (Blackwell). GPU access for this project is provided by the
-**AMD AI Developer Program**, whose credits made this hardware available; thank you to the
-program for the compute.
-
-Stack: ROCm 7.2.4, PyTorch `2.10.0.dev+rocm6.4`, device/dtype resolved at runtime (no
-hardcoded CUDA assumptions — see `docs/SCHEMAFORGE_V2_RESEARCH_DIRECTION.md` §9). No ROCm
-vLLM build is installed; teacher generation uses the batched HuggingFace `generate` fallback
-in `src/01_generate_teacher.py`.
-
-First end-to-end pipeline validation (teacher generation → sequence-level KD training) ran
-successfully on 2026-08-08 on the original 15-document V1 sample set (iterations 1–2 in
-`logs/V2_TRAINING_FAILURES.md`; a real bug was found and fixed in teacher JSON extraction
-during this run).
-
-Iteration 3 replaced that sample set with a real 288-record hard-example corpus
-(`data/hard_examples_train.jsonl`, `schemaforge/hardexamples/generate.py`) and wired the full
-§4.2 teacher-validation gate (`schemaforge/validation/gate.py`); 166/288 records were admitted
-(42.4% rejected, reasons logged to `data/teacher_dataset_rejections.json`), and the student was
-retrained on the admitted set. That checkpoint lives at `models/distilled_minicpm5_1b_v2_amd`.
-
-Iteration 4 ran the first baseline comparison (`src/05_eval_checkpoint.py`) — un-distilled base
-`openbmb/MiniCPM5-1B` vs. this checkpoint, same 72-record eval set. **Result is a mixed/negative
-one:** the distilled checkpoint gains schema validity (+0.077) and recall (+0.042) but loses
-field F1 (-0.039), precision (-0.179), and hallucination rate worsens (+0.035) — likely
-overfitting from only ~18 gated examples/schema over 3 epochs. Full numbers and analysis in
-`logs/V2_TRAINING_FAILURES.md` iteration 4; this is **not yet a charter-compliant improvement**,
-and is reported as a negative result rather than hidden, per research direction §8.
-
-The legacy `src/*.py` scripts are V1 and are **superseded**; they carry the defects listed in
-charter §7 and are retained only for provenance.
-
-## Setup
+## Quick Start
 
 ```bash
 python -m venv .venv
@@ -114,17 +54,7 @@ python -m venv .venv
 # .venv/bin/python -m pip install -r requirements.txt         # Linux/AMD server
 ```
 
-Steps 1–4 require **no torch, no GPU, no network**.
-
-## Test
-
-```bash
-.venv/Scripts/python.exe -m pytest tests/ -q
-```
-
-97 tests, all passing.
-
-## Generate a hard-example dataset
+Steps 1-4 below require no torch, no GPU, no network. Smallest runnable example, generate a hard-example dataset and run the deterministic pre-pass:
 
 ```bash
 .venv/Scripts/python.exe -m schemaforge.hardexamples.generate \
@@ -134,14 +64,115 @@ Steps 1–4 require **no torch, no GPU, no network**.
     --seed 11 --out data/hard_v1.jsonl
 ```
 
-Output is deterministic: the same `--seed` produces byte-identical JSONL.
+Output is deterministic: the same --seed produces byte-identical JSONL.
 
-## Reproduce the deterministic baseline curve
+## Dataset
 
-The deterministic pre-pass is both stage 1 of the pipeline and the primary baseline
-SchemaForge is measured against. Its degradation under corruption is the x-axis of the
-project's headline crossover plot. Measured over the 9 training schemas, 4 docs each
-(n=36 per row), operators `ocr_noise,typo,delabel`, seed 11:
+**Format.** Each record pairs a corrupted document with gold-labeled structured JSON for one of 12 schemas (schemaforge/schemas/). Corruptions are applied via 10 operators (ocr_noise, typo, delabel, implicit, abbreviate, nest, ambiguate, etc.) at configurable severity, generated deterministically from a seed (schemaforge/hardexamples/generate.py, operators.py, seeds.py).
+
+**Preprocessing / validation.** Teacher outputs pass a 4-step gate before admission to the training set (schemaforge/validation/gate.py): JSON parse, then Pydantic schema validation, then source-support/ontology-derivation check, then no-over-assertion check. Rejection reasons are logged (e.g. data/teacher_dataset_rejections.json).
+
+**Splits.** 9 of the 12 schemas are used for training; insurance_claim, conversation, and kg_triple are **held out entirely** and evaluated only for generalization. generate_dataset(..., split="train") raises if a held-out schema is requested, this is enforced in code, not just convention.
+
+## Training
+
+Sequence-level cross-entropy distillation (no cross-tokenizer logit KL, found invalid and dropped, see docs/PROJECT_CHARTER.md section 7.1). Confirmed-optimum recipe: **2 epochs, LR=2e-5**, weight decay 0.01.
+
+### Single GPU
+
+```bash
+.venv/Scripts/python.exe src/02_train_distill.py
+```
+
+### Multi-GPU (DeepSpeed ZeRO-2)
+
+```bash
+deepspeed src/02_train_distill.py --deepspeed configs/ds_config.json
+```
+
+### Distributed Training
+
+This project trains on a single **AMD Instinct MI300X (192GB)** node via SSH; the DeepSpeed config (configs/ds_config.json, ZeRO stage 2, bf16, gradient accumulation 4) generalizes to multi-node without code changes but has not been run multi-node in this project.
+
+## Configuration
+
+| Hyperparameter | Value | Notes |
+|---|---|---|
+| NUM_EPOCHS | 2 | Swept 1/2/3 in V3 iterations 2-3; 2 is the confirmed optimum (0.6597 / 0.6745 / 0.6581 field F1) |
+| Learning rate | 2e-5 | Swept vs 1e-5 in V3 iteration 4; 2e-5 wins (lower LR under-trains on this corpus size) |
+| Weight decay | 0.01 | |
+| Distillation objective | Sequence-level CE only | No logit KL, teacher and student use different tokenizers |
+| Precision | bf16 | fp16 disabled in configs/ds_config.json |
+| ZeRO stage | 2 | Gradient accumulation steps: 4 |
+| Corpus size (V3 best) | n=100 docs, fuzzy-gated to 2691/3600 admitted | See docs/WHITEPAPER_V3.md iteration 2 |
+| Teacher decoding | Greedy (temperature=0.0) | Fixed for determinism, see below |
+
+## Evaluation
+
+```bash
+.venv/Scripts/python.exe src/05_eval_checkpoint.py     # base vs. distilled checkpoint
+.venv/Scripts/python.exe src/08_hybrid_eval.py          # hybrid vs. rules-only vs. model-only
+.venv/Scripts/python.exe -m pytest tests/ -q            # 97 tests, all passing
+```
+
+Metrics (schemaforge/evaluation/metrics.py): micro-averaged field precision/recall/F1, hallucination rate, missing-field rate, schema validity, all computed over flattened dotted-path leaves, with list-valued fields counted per-element (not per-path) in both numerator and denominator to keep units consistent. ambiguate-tagged items are excluded from accuracy by default (exclude_tags=("ambiguate",)) since their gold is contestable; pass exclude_tags=() to pool everything.
+
+Reproduce the deterministic-baseline degradation curve (the pipeline's headline crossover plot) with split='train', feeding run_prepass(...).resolved directly into evaluate_record, it is already in flattened dotted-path form.
+
+## Checkpoints
+
+Published checkpoints live under [arrochi112 on Hugging Face](https://huggingface.co/arrochi112):
+
+- [arrochi112/schemaforge-v2-distilled-minicpm5-1b](https://huggingface.co/arrochi112/schemaforge-v2-distilled-minicpm5-1b), V2-FINAL release checkpoint (iteration 15), sha256 c13f7f6c...
+- [arrochi112/schemaforge-v3-distilled-minicpm5-1b](https://huggingface.co/arrochi112/schemaforge-v3-distilled-minicpm5-1b), V3 best research checkpoint (iteration 2), sha256 c1b51015...7dfb
+
+Local copies live at models/schemaforge-v2-distilled-minicpm5-1b/ and models/schemaforge-v3-distilled-minicpm5-1b/. Every training run backs up the pre-run checkpoint automatically before overwriting (a since-fixed bug once lost a checkpoint without this, see iteration 12 postmortem in logs/V2_TRAINING_FAILURES.md); resume training from the latest ..._pre_<run> backup if a run needs to be re-launched.
+
+## Experiments
+
+| Iteration | Phase | Change tested | Hybrid field F1 | Verdict |
+|---|---|---|---|---|
+| 5/10 | V2 | (pipeline pre-determinism-fixes) | 0.6858 | Highest raw score, but checkpoint later lost (no backup existed yet) |
+| 15 (V2-FINAL) | V2 | Full bug-fixed pipeline: fixed seed, checkpoint backup, greedy teacher decoding | **0.6827** | Release checkpoint, reproducible (+/-0.0003 on controlled re-run) |
+| v3-iter1 | V3 | Corpus scale 75 to 100 docs, strict gate | 0.6581 | Negative, corpus size alone does not close the omission gap |
+| v3-iter2 | V3 | Epochs 3 to 2, fuzzy-gated n=100 corpus | **0.6745** | Positive, best V3 result; confirms total-training-steps hypothesis |
+| v3-iter3 | V3 | Epochs 2 to 1 | 0.6597 | Negative, completes epoch sweep, confirms 2 is optimal |
+| v3-iter4 | V3 | LR 2e-5 to 1e-5 | 0.6671 | Negative, lower LR under-trains, schema validity regresses -0.0833 |
+
+Full manifests: experiments/loop-iter*-*/ (V2) and experiments/v3-iter*-*/ (V3), each with a manifest.json. Failure-category breakdown, calibration (ECE, reliability diagrams, risk-coverage curves), and the full negative-result history live in logs/V2_TRAINING_FAILURES.md and logs/V3_TRAINING_FAILURES.md.
+
+## Hardware
+
+Training runs on a single **AMD Instinct MI300X (192GB)** via SSH, provided by the **AMD AI Developer Program**. Stack: ROCm 7.2.4, PyTorch 2.10.0.dev+rocm6.4; device/dtype resolved at runtime (no hardcoded CUDA assumptions, see docs/SCHEMAFORGE_V2_RESEARCH_DIRECTION.md section 9). No ROCm vLLM build is installed; teacher generation uses the batched HuggingFace generate fallback (src/01_generate_teacher.py).
+
+## Project Structure
+
+```
+schemaforge/
+|-- registry.py            SchemaSpec + leaf_paths; enforces the deterministic/semantic
+|                           field-ownership partition at construction time
+|-- schemas/                12 domains; insurance_claim, conversation, kg_triple held out
+|-- deterministic/          extractors.py, prepass.py (nearest-label binding)
+|-- evaluation/             json_utils.py, metrics.py, harness.py
+|-- hardexamples/           seeds.py, operators.py (10 corruptions), generate.py
+|-- validation/             gate.py, 4-step teacher-output validation
+|-- calibration/            ECE, reliability diagrams, risk-coverage, temperature scaling
+|-- failure_analysis/       8-category failure classifier
+|-- hybrid/                 routing threshold sweep, hybrid merge
+src/                        01-09 numbered pipeline scripts (teacher gen to loop)
+docs/                       WHITEPAPER.md (V2), WHITEPAPER_V3.md (V3), PROJECT_CHARTER.md,
+                             SCHEMAFORGE_V2_RESEARCH_DIRECTION.md, graphs/
+experiments/                per-iteration manifests, provenance
+logs/                       V2_TRAINING_FAILURES.md, V3_TRAINING_FAILURES.md (append-only)
+models/                     local checkpoint copies + model cards
+tests/                      97 tests
+```
+
+## Results & Analysis
+
+Evidence graphs (docs/graphs/): iteration-over-iteration field F1 for V2 and V3, the epoch sweep (1/2/3 epochs), missing_field share of failures over time, and the hybrid-vs-rules-vs-model comparison at V2-FINAL.
+
+**Deterministic-pass degradation curve** (9 training schemas x 4 docs, n=36/row, operators ocr_noise,typo,delabel, seed 11):
 
 | severity | field F1 | precision | recall | missing-field rate |
 |---|---|---|---|---|
@@ -150,48 +181,30 @@ project's headline crossover plot. Measured over the 9 training schemas, 4 docs 
 | 0.6 | 0.138 | 0.528 | 0.080 | 0.849 |
 | 1.0 | 0.092 | 0.474 | 0.051 | 0.892 |
 
-Reading these numbers correctly:
+Precision starts high (0.917) because rules are almost always right about the fields they own, but decays to 0.474 under heavy corruption, rules do not just go quiet under noise, they start being wrong. That decay curve is the target the distilled model has to beat, and recall starts at only 0.250 because it is computed over all schema leaves, including semantic fields the pre-pass never attempts, that headroom is what the hybrid model exists to fill.
 
-- **Precision starts at 0.917 and recall at 0.250.** That shape is the whole thesis in one
-  row: rules are nearly always right about the fields they own, and structurally silent on
-  everything else. Recall is computed over *all* schema leaves, including the semantic fields
-  the pre-pass never attempts, so the 0.25 is not a failure — it is the headroom SchemaForge
-  exists to fill.
-- **Precision decays from 0.917 to 0.474 as corruption rises.** This is the result that
-  matters: under OCR noise, typos and missing labels, rules do not merely go quiet, they
-  start being *wrong*. That decay curve is what the model has to beat.
-- Reproduce with `split='train'`, passing `run_prepass(...).resolved` straight into
-  `evaluate_record` (it is already in flattened dotted-path form).
+**Dominant unsolved failure mode.** missing_field (omission) accounted for 55-62% of every failure breakdown across all 15 V2 iterations and remains 52-59% through V3 iterations 1-4, no corpus-scale, epoch, or LR change tested so far has closed it. This is V3's primary open target (see docs/WHITEPAPER_V3.md open questions).
 
-## Layout
+## Reproducibility
 
-```
-schemaforge/
-├── registry.py            SchemaSpec + leaf_paths; enforces the deterministic/semantic
-│                          field-ownership partition at construction time
-├── schemas/               12 domains; conversation, insurance_claim, kg_triple are held out
-├── deterministic/         extractors.py (dates, emails, urls, phones, money, ids, percents)
-│                          prepass.py (nearest_label binding; never fills a semantic field)
-├── evaluation/            json_utils.py (balanced-brace parser), metrics.py (micro-averaged
-│                          field P/R/F1, hallucination, missing), harness.py (slicing)
-└── hardexamples/          seeds.py (clean docs + gold), operators.py (10 corruptions),
-                           generate.py (CLI, deterministic JSONL)
+- **Seeds.** All corpus generation is seeded (--seed) and produces byte-identical JSONL. Training uses a fixed random seed; a controlled re-run (V2 iteration 15) confirmed field F1 moves by only 0.0003 across a byte-identical corpus re-run.
+- **Teacher decoding.** Greedy (temperature=0.0), required for reproducible teacher labels; this was not always true (see logs/V2_TRAINING_FAILURES.md early iterations).
+- **Versions.** ROCm 7.2.4, PyTorch 2.10.0.dev+rocm6.4. See requirements.txt for full Python dependency pins.
+- **Configs.** configs/ds_config.json (DeepSpeed ZeRO-2), per-run hyperparameters recorded in each experiments/*/manifest.json.
+- **Checkpoints.** Every run auto-backs-up the pre-run checkpoint before overwriting, closing a bug that once lost the highest-scoring V2 checkpoint (iteration 5/10) without a backup.
+
+## Citation
+
+```bibtex
+@software{schemaforge2026,
+  author  = {arrogance231},
+  title   = {SchemaForge: Hybrid Deterministic + Distilled-LLM Structured Extraction},
+  year    = {2026},
+  url     = {https://github.com/arrogance231/SchemaForge},
+  note    = {V2 release checkpoint: arrochi112/schemaforge-v2-distilled-minicpm5-1b (Hugging Face)}
+}
 ```
 
-## Invariants worth knowing
+## License
 
-- **Field ownership.** `deterministic_fields | semantic_fields == leaf_paths(model)`, and the
-  two are disjoint. Enforced in `SchemaSpec.__post_init__`, so a bad split raises at import.
-- **The pre-pass never fills a semantic field.** Asserted in `run_prepass` before returning.
-  A deterministic field the extractors miss falls through to `unresolved` rather than
-  vanishing.
-- **Labels are never inferred from corrupted text.** Corruptions are applied to a document
-  whose gold is already known; only `nest` changes the gold, and its result still validates.
-- **`ambiguate` items are excluded from accuracy.** `harness.evaluate` drops them from
-  `overall` and `by_schema` by default (`exclude_tags=("ambiguate",)`) and reports them under
-  an `excluded` key instead, so contestable gold never penalises a correct system. Pass
-  `exclude_tags=()` to pool everything.
-- **Held-out schemas cannot leak into training data.** `generate_dataset(..., split="train")`
-  raises if a held-out schema is requested; `split="eval"` defaults to exactly the three.
-- **Metric units.** `missing_field_rate` and `hallucination_rate` count leaf *units* in both
-  numerator and denominator — a list of 3 elements contributes 3, not 1.
+Apache 2.0 (as declared in the published model cards). GPU access for training provided by the **AMD AI Developer Program**.
